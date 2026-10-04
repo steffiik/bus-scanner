@@ -923,122 +923,113 @@
 
   function sendToBackend(data) {
 
-    return new Promise(resolve => {
+  return new Promise(resolve => {
 
-      const form =
-        document.createElement(
-          "form"
-        );
+    const form =
+      document.createElement("form");
 
+    form.method = "POST";
+    form.action = BACKEND_URL;
+    form.target = "submitFrame";
 
-      form.method =
-        "POST";
-
-      form.action =
-        BACKEND_URL;
-
-      form.target =
-        "submitFrame";
-
-      form.style.display =
-        "none";
+    form.style.display = "none";
 
 
-      const fields = {
+    const fields = {
 
-        mitgliedsnummer:
-          data.mitgliedsnummer,
+      mitgliedsnummer:
+        data.mitgliedsnummer,
 
-        vorname:
-          data.vorname,
+      vorname:
+        data.vorname,
 
-        nachname:
-          data.nachname,
+      nachname:
+        data.nachname,
 
-        kuerzel:
-          data.kuerzel,
+      kuerzel:
+        data.kuerzel,
 
-        bus:
-          data.bus,
+      bus:
+        data.bus,
 
-        geraet:
-          data.geraet
+      geraet:
+        data.geraet
 
-      };
-
-
-      Object.keys(fields)
-        .forEach(key => {
-
-          const input =
-            document.createElement(
-              "input"
-            );
-
-          input.type =
-            "hidden";
-
-          input.name =
-            key;
-
-          input.value =
-            fields[key] || "";
-
-          form.appendChild(input);
-
-        });
+    };
 
 
-      const requestId =
-        data.id;
+    Object.keys(fields).forEach(key => {
 
+      const input =
+        document.createElement("input");
 
-      window.pendingRequest =
-        requestId;
+      input.type = "hidden";
+      input.name = key;
+      input.value = fields[key] || "";
 
-      window.pendingResolve =
-        resolve;
-
-
-      document.body.appendChild(
-        form
-      );
-
-
-      form.submit();
-
-
-      form.remove();
-
-
-      setTimeout(() => {
-
-        if (
-          window.pendingRequest ===
-          requestId
-        ) {
-
-          window.pendingRequest =
-            null;
-
-          window.pendingResolve =
-            null;
-
-
-          resolve({
-
-            success: false,
-
-            timeout: true
-
-          });
-
-        }
-
-      }, 15000);
+      form.appendChild(input);
 
     });
-  }
+
+
+    const requestId =
+      data.id;
+
+
+    window.pendingRequest =
+      requestId;
+
+    window.pendingResolve =
+      resolve;
+
+
+    document.body.appendChild(form);
+
+    form.submit();
+
+
+    /*
+     * Formular erst nach dem Absenden
+     * aus dem Dokument entfernen.
+     */
+
+    setTimeout(() => {
+
+      if (form.parentNode) {
+        form.parentNode.removeChild(form);
+      }
+
+    }, 100);
+
+
+    /*
+     * Falls Apps Script nicht antwortet,
+     * nach 15 Sekunden als fehlgeschlagen
+     * behandeln.
+     */
+
+    setTimeout(() => {
+
+      if (
+        window.pendingRequest ===
+        requestId
+      ) {
+
+        window.pendingRequest = null;
+        window.pendingResolve = null;
+
+        resolve({
+          success: false,
+          timeout: true
+        });
+
+      }
+
+    }, 15000);
+
+  });
+
+}
 
 
   /*
