@@ -2,12 +2,16 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  >
 
   <title>Bus-Scanner</title>
 
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <!-- QR-Erkennung -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
   <style>
     * {
@@ -16,35 +20,69 @@
 
     body {
       margin: 0;
-      padding: 16px;
+      padding: 12px;
       font-family: Arial, sans-serif;
-      background: #f4f4f4;
+      background: #f3f3f3;
       color: #222;
     }
 
     .container {
-      max-width: 600px;
-      margin: 0 auto;
+      max-width: 650px;
+      margin: auto;
     }
 
     h1 {
       text-align: center;
-      margin: 10px 0 20px;
-    }
-
-    #reader {
-      background: white;
-      border-radius: 12px;
-      overflow: hidden;
-      margin-bottom: 16px;
+      margin: 8px 0 15px;
     }
 
     .card {
       background: white;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    }
+
+    #cameraBox {
+      position: relative;
+      width: 100%;
+      overflow: hidden;
+      border-radius: 14px;
+      background: black;
+    }
+
+    #video {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    #scanOverlay {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 70%;
+      aspect-ratio: 1 / 1;
+      transform: translate(-50%, -50%);
+      border: 4px solid #888;
       border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 16px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      pointer-events: none;
+      transition: border-color 0.15s;
+    }
+
+    #scanOverlay.scanning {
+      border-color: #777;
+    }
+
+    #scanOverlay.found {
+      border-color: #198754;
+    }
+
+    #cameraMessage {
+      text-align: center;
+      padding: 12px;
+      font-weight: bold;
     }
 
     #person {
@@ -52,9 +90,9 @@
     }
 
     #personName {
-      font-size: 25px;
-      font-weight: bold;
       text-align: center;
+      font-size: 26px;
+      font-weight: bold;
       margin-bottom: 8px;
     }
 
@@ -70,9 +108,8 @@
       border-radius: 12px;
       padding: 18px;
       margin-top: 12px;
-      font-size: 20px;
+      font-size: 19px;
       font-weight: bold;
-      cursor: pointer;
     }
 
     #busYes {
@@ -85,17 +122,9 @@
       color: white;
     }
 
-    #status {
-      text-align: center;
-      font-weight: bold;
-      min-height: 24px;
-    }
-
-    #deviceSettings {
-      font-size: 14px;
-      color: #666;
-      text-align: center;
-      margin-top: 15px;
+    #restartButton {
+      background: #444;
+      color: white;
     }
 
     #changeDevice {
@@ -105,18 +134,31 @@
       padding: 10px;
     }
 
-    #offlineInfo {
+    #status {
       text-align: center;
+      font-weight: bold;
+      min-height: 24px;
+    }
+
+    #offlineInfo {
+      display: none;
       background: #fff3cd;
       color: #664d03;
-      padding: 10px;
       border-radius: 8px;
-      display: none;
+      padding: 10px;
+      text-align: center;
       margin-bottom: 12px;
     }
 
-    .hidden {
-      display: none !important;
+    #deviceSettings {
+      text-align: center;
+      color: #666;
+      font-size: 14px;
+      margin-top: 12px;
+    }
+
+    #canvas {
+      display: none;
     }
   </style>
 </head>
@@ -129,10 +171,30 @@
 
   <div id="offlineInfo">
     Keine Internetverbindung.<br>
-    Die Erfassungen werden zwischengespeichert und später übertragen.
+    Die Erfassung wird gespeichert und später übertragen.
   </div>
 
-  <div id="reader"></div>
+  <div class="card">
+
+    <div id="cameraBox">
+
+      <video
+        id="video"
+        playsinline
+        autoplay
+        muted>
+      </video>
+
+      <div id="scanOverlay"></div>
+
+    </div>
+
+    <div id="cameraMessage">
+      Kamera wird gestartet ...
+    </div>
+
+  </div>
+
 
   <div id="person" class="card">
 
@@ -150,23 +212,40 @@
 
   </div>
 
+
   <div class="card">
+
     <div id="status">
-      Kamera wird gestartet ...
+      Bereit ...
     </div>
+
+    <button
+      id="restartButton"
+      style="display:none;">
+      Nächsten Scan starten
+    </button>
+
   </div>
 
+
   <div id="deviceSettings">
-    Gerät: <span id="deviceName"></span>
+
+    Gerät:
+    <span id="deviceName"></span>
+
     <button id="changeDevice">
       Gerät ändern
     </button>
+
   </div>
 
 </div>
 
 
-<!-- Unsichtbarer Bereich für die Verbindung mit Apps Script -->
+<canvas id="canvas"></canvas>
+
+
+<!-- Unsichtbarer Bereich für Apps Script -->
 <iframe
   id="submitFrame"
   name="submitFrame"
@@ -183,22 +262,55 @@
     "https://script.google.com/macros/s/AKfycbxOoSLZAGBdLQs1MXeNvsLtgLY0yDi1FxMnx8cCNmTExS-w9SZrl2ylF_tLduIt0M9-zQ/exec";
 
 
-  let scanner = null;
-  let currentPerson = null;
-  let isProcessing = false;
+  const video =
+    document.getElementById("video");
 
-  const QUEUE_KEY = "busScannerQueue";
-  const DEVICE_KEY = "busScannerDevice";
+  const canvas =
+    document.getElementById("canvas");
+
+  const ctx =
+    canvas.getContext("2d", {
+      willReadFrequently: true
+    });
+
+  const overlay =
+    document.getElementById("scanOverlay");
+
+  const cameraMessage =
+    document.getElementById("cameraMessage");
+
+  const status =
+    document.getElementById("status");
+
+  let cameraStream = null;
+
+  let scanning = false;
+
+  let currentPerson = null;
+
+  let processingScan = false;
+
+
+  const QUEUE_KEY =
+    "busScannerQueue";
+
+  const DEVICE_KEY =
+    "busScannerDevice";
 
 
   /*
-   * Gerät bestimmen
+   * -----------------------------------------
+   * Gerät
+   * -----------------------------------------
    */
+
   function getDeviceName() {
 
-    let device = localStorage.getItem(DEVICE_KEY);
+    let device =
+      localStorage.getItem(DEVICE_KEY);
 
     if (!device) {
+
       device = prompt(
         "Wie soll dieses Gerät heißen?\n\n" +
         "Zum Beispiel: Handy 1"
@@ -219,59 +331,74 @@
 
 
   function showDeviceName() {
-    document.getElementById("deviceName").textContent =
+
+    document.getElementById(
+      "deviceName"
+    ).textContent =
       getDeviceName();
   }
 
 
   /*
-   * Statusmeldung
+   * -----------------------------------------
+   * Status
+   * -----------------------------------------
    */
+
   function setStatus(text) {
-    document.getElementById("status").textContent = text;
+
+    status.textContent = text;
   }
 
 
   /*
+   * -----------------------------------------
    * QR-Code auslesen
-   *
-   * Beispiel:
-   *
-   * Mitgliedsnummer=123;
-   * Vorname=Max;
-   * Nachname=Mustermann;
-   * Kuerzel=MM
+   * -----------------------------------------
    */
+
   function parseQrCode(text) {
 
     const result = {};
 
-    const parts = text.split(";");
+    const parts =
+      text.split(";");
+
 
     parts.forEach(part => {
 
-      const index = part.indexOf("=");
+      const index =
+        part.indexOf("=");
 
       if (index === -1) {
         return;
       }
 
       const key =
-        part.substring(0, index).trim();
+        part
+          .substring(0, index)
+          .trim();
 
       const value =
-        part.substring(index + 1).trim();
+        part
+          .substring(index + 1)
+          .trim();
 
       result[key] = value;
+
     });
 
+
     if (!result.Mitgliedsnummer) {
+
       throw new Error(
-        "Keine Mitgliedsnummer im QR-Code gefunden."
+        "Keine Mitgliedsnummer gefunden."
       );
     }
 
+
     return {
+
       mitgliedsnummer:
         result.Mitgliedsnummer,
 
@@ -283,29 +410,53 @@
 
       kuerzel:
         result.Kuerzel || ""
+
     };
   }
 
 
   /*
+   * -----------------------------------------
    * Person anzeigen
+   * -----------------------------------------
    */
+
   function showPerson(person) {
 
     currentPerson = person;
 
-    document.getElementById("personName").textContent =
-      person.vorname + " " + person.nachname;
+    document.getElementById(
+      "personName"
+    ).textContent =
+      person.vorname +
+      " " +
+      person.nachname;
 
-    document.getElementById("memberNumber").textContent =
-      "Mitgliedsnummer: " + person.mitgliedsnummer;
 
-    document.getElementById("person").style.display =
+    document.getElementById(
+      "memberNumber"
+    ).textContent =
+      "Mitgliedsnummer: " +
+      person.mitgliedsnummer;
+
+
+    document.getElementById(
+      "person"
+    ).style.display =
       "block";
 
-    document.getElementById("reader").classList.add(
-      "hidden"
-    );
+
+    document.getElementById(
+      "cameraBox"
+    ).style.display =
+      "none";
+
+
+    document.getElementById(
+      "cameraMessage"
+    ).style.display =
+      "none";
+
 
     setStatus(
       "Bitte Bus-Auswahl treffen."
@@ -314,117 +465,204 @@
 
 
   /*
-   * Scanner wieder starten
+   * -----------------------------------------
+   * Kamera starten
+   * -----------------------------------------
    */
-  async function restartScanner() {
 
-    document.getElementById("person").style.display =
-      "none";
+  async function startCamera() {
 
-    document.getElementById("reader").classList.remove(
-      "hidden"
-    );
+    try {
 
-    currentPerson = null;
-    isProcessing = false;
+      cameraMessage.textContent =
+        "Kamera wird gestartet ...";
 
-    setStatus(
-      "Bereit für den nächsten Scan."
-    );
+
+      cameraStream =
+        await navigator.mediaDevices.getUserMedia({
+
+          video: {
+
+            facingMode: {
+              ideal: "environment"
+            },
+
+            width: {
+              ideal: 1280
+            },
+
+            height: {
+              ideal: 720
+            }
+
+          },
+
+          audio: false
+
+        });
+
+
+      video.srcObject =
+        cameraStream;
+
+
+      await video.play();
+
+
+      cameraMessage.textContent =
+        "QR-Code vor die Kamera halten";
+
+
+      setStatus(
+        "Bereit für den nächsten Scan."
+      );
+
+
+      scanning = true;
+
+
+      requestAnimationFrame(
+        scanFrame
+      );
+
+
+    } catch (error) {
+
+      console.error(error);
+
+      cameraMessage.textContent =
+        "Kamera konnte nicht gestartet werden.";
+
+      setStatus(
+        "Bitte Kamerazugriff erlauben."
+      );
+    }
   }
 
 
   /*
-   * QR-Code wurde erkannt
+   * -----------------------------------------
+   * QR-Code suchen
+   * -----------------------------------------
    */
-  async function onScanSuccess(decodedText) {
 
-    if (isProcessing) {
+  function scanFrame() {
+
+    if (!scanning) {
       return;
     }
 
-    isProcessing = true;
 
-    try {
+    if (
+      video.readyState ===
+      video.HAVE_ENOUGH_DATA
+    ) {
 
-      const person =
-        parseQrCode(decodedText);
+      const width =
+        video.videoWidth;
 
-      await scanner.clear();
-
-      showPerson(person);
-
-    } catch (error) {
-
-      console.error(error);
-
-      setStatus(
-        "QR-Code konnte nicht gelesen werden."
-      );
-
-      isProcessing = false;
-    }
-  }
+      const height =
+        video.videoHeight;
 
 
-  /*
-   * Scanner starten
-   */
-  async function startScanner() {
+      if (width > 0 && height > 0) {
 
-    scanner = new Html5Qrcode(
-      "reader"
-    );
+        canvas.width = width;
+        canvas.height = height;
 
-    try {
 
-      await scanner.start(
+        ctx.drawImage(
+          video,
+          0,
+          0,
+          width,
+          height
+        );
 
-        { facingMode: "environment" },
 
-        {
-          fps: 15,
-        qrbox: {
-      width: 300,
-      height: 300
-    },
-    aspectRatio: 1.0
-        },
+        const imageData =
+          ctx.getImageData(
+            0,
+            0,
+            width,
+            height
+          );
 
-        onScanSuccess,
 
-        function () {
-          // Fehlermeldungen beim normalen
-          // Nicht-Erkennen eines QR-Codes ignorieren.
+        const code =
+          jsQR(
+            imageData.data,
+            imageData.width,
+            imageData.height,
+            {
+              inversionAttempts:
+                "attemptBoth"
+            }
+          );
+
+
+        if (
+          code &&
+          code.data &&
+          !processingScan
+        ) {
+
+          processingScan = true;
+
+          overlay.classList.add(
+            "found"
+          );
+
+
+          try {
+
+            const person =
+              parseQrCode(
+                code.data
+              );
+
+
+            scanning = false;
+
+            showPerson(person);
+
+
+          } catch (error) {
+
+            console.log(
+              "QR erkannt, aber Inhalt ungültig:",
+              code.data
+            );
+
+            processingScan = false;
+
+          }
+
         }
-
-      );
-
-      setStatus(
-        "Kamera bereit – QR-Code scannen."
-      );
-
-    } catch (error) {
-
-      console.error(error);
-
-      setStatus(
-        "Kamera konnte nicht gestartet werden. " +
-        "Bitte Kamera-Berechtigung erlauben."
-      );
+      }
     }
+
+
+    requestAnimationFrame(
+      scanFrame
+    );
   }
 
 
   /*
-   * Offline-Warteschlange laden
+   * -----------------------------------------
+   * Warteschlange
+   * -----------------------------------------
    */
+
   function getQueue() {
 
     try {
 
       return JSON.parse(
-        localStorage.getItem(QUEUE_KEY) || "[]"
+        localStorage.getItem(
+          QUEUE_KEY
+        ) || "[]"
       );
 
     } catch (error) {
@@ -434,9 +672,6 @@
   }
 
 
-  /*
-   * Offline-Warteschlange speichern
-   */
   function saveQueue(queue) {
 
     localStorage.setItem(
@@ -446,12 +681,10 @@
   }
 
 
-  /*
-   * Einen Scan in die Warteschlange legen
-   */
   function addToQueue(data) {
 
-    const queue = getQueue();
+    const queue =
+      getQueue();
 
     queue.push(data);
 
@@ -460,25 +693,36 @@
 
 
   /*
-   * Scan an Apps Script übertragen
-   *
-   * Wir benutzen absichtlich ein normales
-   * HTML-POST über ein unsichtbares iframe.
-   * Dadurch benötigen wir keine CORS-Freigabe.
+   * -----------------------------------------
+   * Apps Script übertragen
+   * -----------------------------------------
    */
+
   function sendToBackend(data) {
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
 
       const form =
-        document.createElement("form");
+        document.createElement(
+          "form"
+        );
 
-      form.method = "POST";
-      form.action = BACKEND_URL;
-      form.target = "submitFrame";
-      form.style.display = "none";
+
+      form.method =
+        "POST";
+
+      form.action =
+        BACKEND_URL;
+
+      form.target =
+        "submitFrame";
+
+      form.style.display =
+        "none";
+
 
       const fields = {
+
         mitgliedsnummer:
           data.mitgliedsnummer,
 
@@ -499,24 +743,31 @@
       };
 
 
-      Object.keys(fields).forEach(key => {
+      Object.keys(fields)
+        .forEach(key => {
 
-        const input =
-          document.createElement("input");
+          const input =
+            document.createElement(
+              "input"
+            );
 
-        input.type = "hidden";
-        input.name = key;
-        input.value = fields[key] || "";
+          input.type =
+            "hidden";
 
-        form.appendChild(input);
-      });
+          input.name =
+            key;
+
+          input.value =
+            fields[key] || "";
+
+          form.appendChild(input);
+
+        });
 
 
-      /*
-       * ID für die Antwort merken.
-       */
       const requestId =
         data.id;
+
 
       window.pendingRequest =
         requestId;
@@ -525,30 +776,39 @@
         resolve;
 
 
-      document.body.appendChild(form);
+      document.body.appendChild(
+        form
+      );
+
 
       form.submit();
+
 
       form.remove();
 
 
-      /*
-       * Falls die Internetverbindung komplett
-       * weg ist, nicht ewig warten.
-       */
       setTimeout(() => {
 
         if (
-          window.pendingRequest === requestId
+          window.pendingRequest ===
+          requestId
         ) {
 
-          window.pendingRequest = null;
-          window.pendingResolve = null;
+          window.pendingRequest =
+            null;
+
+          window.pendingResolve =
+            null;
+
 
           resolve({
+
             success: false,
+
             timeout: true
+
           });
+
         }
 
       }, 15000);
@@ -558,8 +818,9 @@
 
 
   /*
-   * Antwort von Apps Script empfangen
+   * Antwort von Apps Script
    */
+
   window.addEventListener(
     "message",
     function(event) {
@@ -567,52 +828,77 @@
       if (
         !event.data ||
         event.data.type !==
-          "busScannerResult"
+        "busScannerResult"
       ) {
         return;
       }
 
-      if (!window.pendingResolve) {
+
+      if (
+        !window.pendingResolve
+      ) {
         return;
       }
+
 
       const resolve =
         window.pendingResolve;
 
-      window.pendingResolve = null;
-      window.pendingRequest = null;
 
-      resolve(event.data.data);
+      window.pendingResolve =
+        null;
+
+      window.pendingRequest =
+        null;
+
+
+      resolve(
+        event.data.data
+      );
+
     }
   );
 
 
   /*
+   * -----------------------------------------
    * Warteschlange übertragen
+   * -----------------------------------------
    */
+
   async function flushQueue() {
 
     if (!navigator.onLine) {
       return;
     }
 
-    let queue = getQueue();
+
+    let queue =
+      getQueue();
+
 
     if (queue.length === 0) {
       return;
     }
+
 
     setStatus(
       "Gespeicherte Scans werden übertragen ..."
     );
 
 
-    while (queue.length > 0) {
+    while (
+      queue.length > 0
+    ) {
 
-      const item = queue[0];
+      const item =
+        queue[0];
+
 
       const result =
-        await sendToBackend(item);
+        await sendToBackend(
+          item
+        );
 
 
       if (
@@ -624,18 +910,17 @@
 
         saveQueue(queue);
 
+
       } else {
 
-        /*
-         * Bei Fehler nicht löschen.
-         * Beim nächsten Versuch erneut senden.
-         */
         break;
       }
     }
 
 
-    if (queue.length === 0) {
+    if (
+      queue.length === 0
+    ) {
 
       setStatus(
         "Alle Scans übertragen."
@@ -652,9 +937,14 @@
 
 
   /*
+   * -----------------------------------------
    * Bus-Auswahl
+   * -----------------------------------------
    */
-  async function saveCurrentScan(busValue) {
+
+  async function saveCurrentScan(
+    busValue
+  ) {
 
     if (!currentPerson) {
       return;
@@ -687,28 +977,45 @@
 
       geraet:
         getDeviceName()
+
     };
 
 
     /*
-     * Zuerst lokal speichern.
-     * Dadurch geht bei schlechtem Internet
-     * nichts verloren.
+     * Sofort lokal speichern.
      */
     addToQueue(data);
 
 
     /*
-     * Person sofort ausblenden.
+     * Person ausblenden.
      */
-    document.getElementById("person")
-      .style.display = "none";
 
-    document.getElementById("reader")
-      .classList.remove("hidden");
+    document.getElementById(
+      "person"
+    ).style.display =
+      "none";
+
+
+    document.getElementById(
+      "cameraBox"
+    ).style.display =
+      "block";
+
+
+    document.getElementById(
+      "cameraMessage"
+    ).style.display =
+      "block";
+
 
     currentPerson = null;
-    isProcessing = false;
+
+    processingScan = false;
+
+    overlay.classList.remove(
+      "found"
+    );
 
 
     if (!navigator.onLine) {
@@ -718,127 +1025,162 @@
         "Wird später übertragen."
       );
 
+
+      scanning = true;
+
+      requestAnimationFrame(
+        scanFrame
+      );
+
       return;
     }
 
 
     await flushQueue();
+
+
+    scanning = true;
+
+    requestAnimationFrame(
+      scanFrame
+    );
   }
 
 
   /*
+   * -----------------------------------------
    * Buttons
+   * -----------------------------------------
    */
-  document.getElementById("busYes")
-    .addEventListener(
-      "click",
-      function () {
-        saveCurrentScan("Ja");
-      }
-    );
+
+  document.getElementById(
+    "busYes"
+  ).addEventListener(
+    "click",
+    function() {
+
+      saveCurrentScan("Ja");
+
+    }
+  );
 
 
-  document.getElementById("busNo")
-    .addEventListener(
-      "click",
-      function () {
-        saveCurrentScan("Nein");
-      }
-    );
+  document.getElementById(
+    "busNo"
+  ).addEventListener(
+    "click",
+    function() {
+
+      saveCurrentScan("Nein");
+
+    }
+  );
 
 
   /*
+   * -----------------------------------------
    * Gerät ändern
+   * -----------------------------------------
    */
-  document.getElementById("changeDevice")
-    .addEventListener(
-      "click",
-      function () {
 
-        const newName =
-          prompt(
-            "Name dieses Geräts:",
-            getDeviceName()
-          );
+  document.getElementById(
+    "changeDevice"
+  ).addEventListener(
+    "click",
+    function() {
 
-        if (
-          newName &&
+      const newName =
+        prompt(
+          "Name dieses Geräts:",
+          getDeviceName()
+        );
+
+
+      if (
+        newName &&
+        newName.trim()
+      ) {
+
+        localStorage.setItem(
+          DEVICE_KEY,
           newName.trim()
-        ) {
+        );
 
-          localStorage.setItem(
-            DEVICE_KEY,
-            newName.trim()
-          );
 
-          showDeviceName();
-        }
+        showDeviceName();
       }
-    );
+
+    }
+  );
 
 
   /*
-   * Internet kommt zurück
+   * -----------------------------------------
+   * Internet
+   * -----------------------------------------
    */
+
   window.addEventListener(
     "online",
-    function () {
+    function() {
 
       document.getElementById(
         "offlineInfo"
-      ).style.display = "none";
+      ).style.display =
+        "none";
+
 
       setStatus(
         "Internet wieder verfügbar."
       );
 
+
       flushQueue();
+
     }
   );
 
 
-  /*
-   * Internet fällt aus
-   */
   window.addEventListener(
     "offline",
-    function () {
+    function() {
 
       document.getElementById(
         "offlineInfo"
-      ).style.display = "block";
+      ).style.display =
+        "block";
+
 
       setStatus(
-        "Offline – neue Scans werden gespeichert."
+        "Offline – Scans werden gespeichert."
       );
+
     }
   );
 
 
   /*
-   * Beim Start
+   * -----------------------------------------
+   * Start
+   * -----------------------------------------
    */
+
   showDeviceName();
+
 
   if (!navigator.onLine) {
 
     document.getElementById(
       "offlineInfo"
-    ).style.display = "block";
+    ).style.display =
+      "block";
   }
 
 
-  /*
-   * Eventuell bereits vorhandene
-   * Offline-Scans übertragen.
-   */
   flushQueue();
 
 
-  /*
-   * Kamera starten
-   */
-  startScanner();
+  startCamera();
 
 </script>
 
