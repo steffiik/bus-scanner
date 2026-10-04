@@ -389,6 +389,134 @@ function getTodayString() {
 
 }
 
+  /* =========================================
+   HEUTE BEREITS ERFASSTE PERSONEN
+========================================= */
+
+const SCANNED_TODAY_KEY =
+  "busScannerScannedToday";
+
+
+function getScannedToday() {
+
+  try {
+
+    const saved =
+      localStorage.getItem(
+        SCANNED_TODAY_KEY
+      );
+
+    if (!saved) {
+      return [];
+    }
+
+    const data =
+      JSON.parse(saved);
+
+    if (!Array.isArray(data)) {
+      return [];
+    }
+
+    /*
+     * Nur Einträge von heute behalten.
+     */
+
+    const today =
+      getTodayString();
+
+    const result =
+      data.filter(function(item) {
+
+        return (
+          item.datum === today
+        );
+
+      });
+
+    /*
+     * Alte Einträge automatisch entfernen.
+     */
+
+    localStorage.setItem(
+      SCANNED_TODAY_KEY,
+      JSON.stringify(result)
+    );
+
+    return result;
+
+  } catch (error) {
+
+    console.error(
+      "Tagesliste konnte nicht gelesen werden:",
+      error
+    );
+
+    return [];
+
+  }
+
+}
+
+
+function wasScannedToday(memberNumber) {
+
+  const scans =
+    getScannedToday();
+
+  return scans.some(
+    function(item) {
+
+      return (
+        String(item.mitgliedsnummer) ===
+        String(memberNumber)
+      );
+
+    }
+  );
+
+}
+
+
+function markScannedToday(memberNumber) {
+
+  const scans =
+    getScannedToday();
+
+  const alreadyExists =
+    scans.some(
+      function(item) {
+
+        return (
+          String(item.mitgliedsnummer) ===
+          String(memberNumber)
+        );
+
+      }
+    );
+
+
+  if (alreadyExists) {
+    return;
+  }
+
+
+  scans.push({
+
+    datum:
+      getTodayString(),
+
+    mitgliedsnummer:
+      String(memberNumber)
+
+  });
+
+
+  localStorage.setItem(
+    SCANNED_TODAY_KEY,
+    JSON.stringify(scans)
+  );
+
+}
 
 function isAlreadyQueuedToday(
   memberNumber
@@ -750,11 +878,69 @@ function qrDetected(text) {
       parseQrCode(text);
 
 
+    /*
+     * Prüfen, ob diese Person auf
+     * diesem Handy heute schon erfasst wurde.
+     */
+
+    if (
+      wasScannedToday(
+        person.mitgliedsnummer
+      )
+    ) {
+
+      processing = true;
+
+      stopScanner();
+
+      overlay.classList.add(
+        "found"
+      );
+
+
+      setStatus(
+        "⚠️ Diese Person wurde heute bereits erfasst."
+      );
+
+
+      /*
+       * Kurz anzeigen und danach
+       * automatisch weiterscannen.
+       */
+
+      setTimeout(
+        function() {
+
+          overlay.classList.remove(
+            "found"
+          );
+
+          processing = false;
+
+          setStatus(
+            "Scanner bereit."
+          );
+
+          startScanner();
+
+        },
+        2500
+      );
+
+
+      return;
+
+    }
+
+
+    /*
+     * Person ist heute noch nicht
+     * auf diesem Handy erfasst worden.
+     */
+
     processing = true;
 
-
     stopScanner();
-
 
     overlay.classList.add(
       "found"
@@ -797,13 +983,16 @@ function qrDetected(text) {
 
   } catch (error) {
 
+    console.error(
+      error
+    );
+
     debug.textContent =
       "QR erkannt, Format unbekannt.";
 
   }
 
 }
-
 
 /* =========================================
    KAMERA STARTEN
@@ -1188,10 +1377,6 @@ async function sendToBackend(data) {
 }
 
 
-/* =========================================
-   SCAN SPEICHERN
-========================================= */
-
 async function saveScan(
   busValue
 ) {
@@ -1230,9 +1415,8 @@ async function saveScan(
 
 
   /*
-   * Wenn das Handy laut Browser
-   * kein Internet hat, sofort
-   * offline speichern.
+   * Wenn das Handy kein Internet hat:
+   * lokal speichern.
    */
 
   if (
@@ -1247,6 +1431,16 @@ async function saveScan(
 
     if (added) {
 
+      /*
+       * Auch lokal als bereits
+       * erfasst markieren.
+       */
+
+      markScannedToday(
+        data.mitgliedsnummer
+      );
+
+
       setStatus(
         "📱 Kein Internet – Scan wurde auf diesem Handy gespeichert."
       );
@@ -1254,11 +1448,13 @@ async function saveScan(
     } else {
 
       setStatus(
-        "⚠️ Diese Person ist auf diesem Handy heute bereits gespeichert."
+        "⚠️ Diese Person wurde heute bereits erfasst."
       );
 
     }
 
+
+    updateOfflineInfo();
 
     finishScan();
 
@@ -1269,7 +1465,7 @@ async function saveScan(
 
   /*
    * Internet vorhanden:
-   * direkt versuchen zu übertragen.
+   * direkt an das Backend senden.
    */
 
   const success =
@@ -1280,6 +1476,15 @@ async function saveScan(
 
   if (success) {
 
+    /*
+     * Auf diesem Handy als erfasst markieren.
+     */
+
+    markScannedToday(
+      data.mitgliedsnummer
+    );
+
+
     setStatus(
       "✅ Scan gespeichert."
     );
@@ -1289,7 +1494,7 @@ async function saveScan(
 
     /*
      * Übertragung fehlgeschlagen.
-     * Deshalb lokal speichern.
+     * Lokal speichern.
      */
 
     const added =
@@ -1300,6 +1505,11 @@ async function saveScan(
 
     if (added) {
 
+      markScannedToday(
+        data.mitgliedsnummer
+      );
+
+
       setStatus(
         "📱 Internet nicht erreichbar – Scan wurde gespeichert und wird später übertragen."
       );
@@ -1307,7 +1517,7 @@ async function saveScan(
     } else {
 
       setStatus(
-        "⚠️ Scan konnte nicht übertragen werden und ist bereits offline gespeichert."
+        "⚠️ Diese Person wurde heute bereits erfasst."
       );
 
     }
