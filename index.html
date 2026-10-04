@@ -12,7 +12,7 @@
 
   <title>Bus-Scanner</title>
 
-  <script src="https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
   <style>
 
@@ -287,9 +287,7 @@ const personBox =
 
 let stream = null;
 
-let scanner = null;
 
-let scannerControls = null;
 
 let currentPerson = null;
 
@@ -619,45 +617,29 @@ async function startCamera() {
    QR SCANNER
 ========================================= */
 
-async function startScanner() {
+function startScanner() {
 
   try {
 
-    if (
-      !window.ZXingBrowser
-    ) {
+    if (!window.jsQR) {
 
       throw new Error(
-        "ZXing wurde nicht geladen."
+        "jsQR wurde nicht geladen."
       );
 
     }
 
 
-    scanner =
-      new ZXingBrowser
-        .BrowserQRCodeReader();
+    const canvas =
+      document.createElement("canvas");
+
+    const context =
+      canvas.getContext("2d", {
+        willReadFrequently: true
+      });
 
 
-    scannerControls =
-      await scanner
-        .decodeFromVideoElement(
-          video,
-          function(result, error) {
-
-            if (
-              result &&
-              result.getText()
-            ) {
-
-              qrDetected(
-                result.getText()
-              );
-
-            }
-
-          }
-        );
+    scanning = true;
 
 
     setStatus(
@@ -667,6 +649,133 @@ async function startScanner() {
 
     debug.textContent =
       "QR-Scanner läuft";
+
+
+    function scanFrame() {
+
+      if (
+        !scanning ||
+        processing
+      ) {
+
+        return;
+
+      }
+
+
+      if (
+        video.readyState <
+        video.HAVE_ENOUGH_DATA
+      ) {
+
+        requestAnimationFrame(
+          scanFrame
+        );
+
+        return;
+
+      }
+
+
+      /*
+       * Kamerabild auf Canvas zeichnen.
+       */
+
+      const width =
+        video.videoWidth;
+
+      const height =
+        video.videoHeight;
+
+
+      if (
+        width === 0 ||
+        height === 0
+      ) {
+
+        requestAnimationFrame(
+          scanFrame
+        );
+
+        return;
+
+      }
+
+
+      canvas.width =
+        width;
+
+      canvas.height =
+        height;
+
+
+      context.drawImage(
+        video,
+        0,
+        0,
+        width,
+        height
+      );
+
+
+      const imageData =
+        context.getImageData(
+          0,
+          0,
+          width,
+          height
+        );
+
+
+      /*
+       * QR-Code suchen.
+       */
+
+      const code =
+        jsQR(
+          imageData.data,
+          imageData.width,
+          imageData.height,
+          {
+            inversionAttempts:
+              "attemptBoth"
+          }
+        );
+
+
+      if (
+        code &&
+        code.data
+      ) {
+
+        console.log(
+          "QR-Code erkannt:",
+          code.data
+        );
+
+
+        qrDetected(
+          code.data
+        );
+
+
+        return;
+
+      }
+
+
+      /*
+       * Nächsten Kameraframe prüfen.
+       */
+
+      requestAnimationFrame(
+        scanFrame
+      );
+
+    }
+
+
+    scanFrame();
 
 
   } catch (error) {
@@ -689,30 +798,13 @@ async function startScanner() {
 
 }
 
-
 /* =========================================
    SCANNER STOPPEN
 ========================================= */
 
 function stopScanner() {
 
-  if (
-    scannerControls &&
-    typeof scannerControls.stop ===
-    "function"
-  ) {
-
-    try {
-
-      scannerControls.stop();
-
-    } catch (error) {}
-
-  }
-
-
-  scannerControls =
-    null;
+  scanning = false;
 
 }
 
