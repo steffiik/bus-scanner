@@ -12,7 +12,6 @@
 
   <title>Bus-Scanner</title>
 
-  <!-- QR-Erkennung -->
   <script src="https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js"></script>
 
   <style>
@@ -25,8 +24,8 @@
       margin: 0;
       padding: 12px;
       background: #f3f3f3;
-      font-family: Arial, sans-serif;
       color: #222;
+      font-family: Arial, sans-serif;
     }
 
     .container {
@@ -48,6 +47,7 @@
     }
 
     #cameraBox {
+      display: none;
       position: relative;
       background: black;
       border-radius: 14px;
@@ -80,6 +80,11 @@
       text-align: center;
       padding: 12px;
       font-weight: bold;
+    }
+
+    #startCamera {
+      background: #198754;
+      color: white;
     }
 
     #person {
@@ -119,11 +124,6 @@
       color: white;
     }
 
-    #restart {
-      background: #444;
-      color: white;
-    }
-
     #changeDevice {
       background: #ddd;
       color: #222;
@@ -137,17 +137,17 @@
       min-height: 24px;
     }
 
+    #device {
+      text-align: center;
+      color: #666;
+      font-size: 14px;
+    }
+
     #debug {
       margin-top: 10px;
       text-align: center;
       font-size: 12px;
       color: #777;
-    }
-
-    #device {
-      text-align: center;
-      color: #666;
-      font-size: 14px;
     }
 
   </style>
@@ -164,9 +164,16 @@
   <h1>🚌 Bus-Scanner</h1>
 
 
-  <!-- KAMERA -->
-
   <div class="card">
+
+    <div id="cameraMessage">
+      Kamera noch nicht gestartet.
+    </div>
+
+    <button id="startCamera">
+      📷 Kamera starten
+    </button>
+
 
     <div id="cameraBox">
 
@@ -181,15 +188,8 @@
 
     </div>
 
-
-    <div id="cameraMessage">
-      Kamera wird gestartet ...
-    </div>
-
   </div>
 
-
-  <!-- PERSON -->
 
   <div
     id="person"
@@ -212,24 +212,14 @@
   </div>
 
 
-  <!-- STATUS -->
-
   <div class="card">
 
     <div id="status">
-      Bitte warten ...
+      Bitte Kamera starten.
     </div>
-
-    <button
-      id="restart"
-      style="display:none;">
-      Nächsten Scan starten
-    </button>
 
   </div>
 
-
-  <!-- GERÄT -->
 
   <div
     id="device"
@@ -254,30 +244,32 @@
 <script>
 
 
-/*
-==================================================
-BACKEND
-==================================================
-*/
+/* =========================================
+   BACKEND
+========================================= */
 
 const BACKEND_URL =
   "https://script.google.com/macros/s/AKfycbxOoSLZAGBdLQs1MXeNvsLtgLY0yDi1FxMnx8cCNmTExS-w9SZrl2ylF_tLduIt0M9-zQ/exec";
 
 
-/*
-==================================================
-ELEMENTE
-==================================================
-*/
+/* =========================================
+   ELEMENTE
+========================================= */
 
 const video =
   document.getElementById("video");
 
-const overlay =
-  document.getElementById("overlay");
+const cameraBox =
+  document.getElementById("cameraBox");
 
 const cameraMessage =
   document.getElementById("cameraMessage");
+
+const startCameraButton =
+  document.getElementById("startCamera");
+
+const overlay =
+  document.getElementById("overlay");
 
 const status =
   document.getElementById("status");
@@ -288,15 +280,10 @@ const debug =
 const personBox =
   document.getElementById("person");
 
-const restartButton =
-  document.getElementById("restart");
 
-
-/*
-==================================================
-VARIABLEN
-==================================================
-*/
+/* =========================================
+   VARIABLEN
+========================================= */
 
 let stream = null;
 
@@ -304,18 +291,14 @@ let scanner = null;
 
 let scannerControls = null;
 
-let scanning = false;
+let currentPerson = null;
 
 let processing = false;
 
-let currentPerson = null;
 
-
-/*
-==================================================
-GERÄT
-==================================================
-*/
+/* =========================================
+   GERÄT
+========================================= */
 
 function getDeviceName() {
 
@@ -367,11 +350,21 @@ function showDeviceName() {
 }
 
 
-/*
-==================================================
-QR CODE PARSEN
-==================================================
-*/
+/* =========================================
+   STATUS
+========================================= */
+
+function setStatus(text) {
+
+  status.textContent =
+    text;
+
+}
+
+
+/* =========================================
+   QR PARSEN
+========================================= */
 
 function parseQrCode(text) {
 
@@ -438,11 +431,9 @@ function parseQrCode(text) {
 }
 
 
-/*
-==================================================
-QR ERKANNT
-==================================================
-*/
+/* =========================================
+   QR ERKANNT
+========================================= */
 
 function qrDetected(text) {
 
@@ -456,12 +447,6 @@ function qrDetected(text) {
   }
 
 
-  console.log(
-    "QR erkannt:",
-    text
-  );
-
-
   try {
 
     const person =
@@ -469,8 +454,6 @@ function qrDetected(text) {
 
 
     processing = true;
-
-    scanning = false;
 
 
     stopScanner();
@@ -481,122 +464,99 @@ function qrDetected(text) {
     );
 
 
-    showPerson(person);
+    currentPerson =
+      person;
+
+
+    document.getElementById(
+      "personName"
+    ).textContent =
+      (
+        person.vorname +
+        " " +
+        person.nachname
+      ).trim();
+
+
+    document.getElementById(
+      "memberNumber"
+    ).textContent =
+      "Mitgliedsnummer: " +
+      person.mitgliedsnummer;
+
+
+    personBox.style.display =
+      "block";
+
+
+    cameraBox.style.display =
+      "none";
+
+
+    setStatus(
+      "Bitte Bus-Auswahl treffen."
+    );
 
 
   } catch (error) {
 
     debug.textContent =
-      "QR erkannt, aber Format unbekannt.";
-
-    console.log(
-      error
-    );
+      "QR erkannt, Format unbekannt.";
 
   }
 
 }
 
 
-/*
-==================================================
-PERSON ANZEIGEN
-==================================================
-*/
-
-function showPerson(person) {
-
-  currentPerson =
-    person;
-
-
-  document.getElementById(
-    "personName"
-  ).textContent =
-    (
-      person.vorname +
-      " " +
-      person.nachname
-    ).trim();
-
-
-  document.getElementById(
-    "memberNumber"
-  ).textContent =
-    "Mitgliedsnummer: " +
-    person.mitgliedsnummer;
-
-
-  personBox.style.display =
-    "block";
-
-
-  document.getElementById(
-    "cameraBox"
-  ).style.display =
-    "none";
-
-
-  cameraMessage.style.display =
-    "none";
-
-
-  setStatus(
-    "Bitte Bus-Auswahl treffen."
-  );
-
-}
-
-
-/*
-==================================================
-STATUS
-==================================================
-*/
-
-function setStatus(text) {
-
-  status.textContent =
-    text;
-
-}
-
-
-/*
-==================================================
-KAMERA
-==================================================
-*/
+/* =========================================
+   KAMERA STARTEN
+========================================= */
 
 async function startCamera() {
 
+  startCameraButton.disabled =
+    true;
+
+
+  cameraMessage.textContent =
+    "Kamera wird gestartet ...";
+
+
+  setStatus(
+    "Kamera wird geöffnet ..."
+  );
+
+
   try {
 
-    setStatus(
-      "Kamera wird geöffnet ..."
-    );
+    const mediaDevices =
+      navigator.mediaDevices;
 
 
-    cameraMessage.textContent =
-      "Kamera wird geöffnet ...";
+    if (
+      !mediaDevices ||
+      !mediaDevices.getUserMedia
+    ) {
+
+      throw new Error(
+        "Kamera wird von diesem Browser nicht unterstützt."
+      );
+
+    }
 
 
     stream =
-      await navigator
-        .mediaDevices
-        .getUserMedia({
+      await mediaDevices.getUserMedia({
 
-          video: {
+        video: {
 
-            facingMode: {
-              ideal: "environment"
-            }
+          facingMode: "environment"
 
-          },
+        },
 
-          audio: false
+        audio: false
 
-        });
+      });
 
 
     video.srcObject =
@@ -606,24 +566,24 @@ async function startCamera() {
     await video.play();
 
 
+    cameraBox.style.display =
+      "block";
+
+
     cameraMessage.textContent =
       "QR-Code vor die Kamera halten";
 
 
     setStatus(
-      "Scanner bereit."
+      "Kamera läuft – Scanner wird gestartet ..."
     );
 
 
     debug.textContent =
-      "Kamera erfolgreich gestartet";
+      "Kamera erfolgreich geöffnet";
 
 
-    /*
-     * Erst jetzt QR-Scanner starten.
-     */
-
-    startScanner();
+    await startScanner();
 
 
   } catch (error) {
@@ -633,12 +593,16 @@ async function startCamera() {
     );
 
 
+    startCameraButton.disabled =
+      false;
+
+
     cameraMessage.textContent =
       "Kamera konnte nicht gestartet werden.";
 
 
     setStatus(
-      "Kamerafehler: " +
+      "Fehler: " +
       error.name
     );
 
@@ -651,11 +615,9 @@ async function startCamera() {
 }
 
 
-/*
-==================================================
-QR SCANNER
-==================================================
-*/
+/* =========================================
+   QR SCANNER
+========================================= */
 
 async function startScanner() {
 
@@ -677,13 +639,6 @@ async function startScanner() {
         .BrowserQRCodeReader();
 
 
-    scanning = true;
-
-
-    debug.textContent =
-      "QR-Scanner läuft";
-
-
     scannerControls =
       await scanner
         .decodeFromVideoElement(
@@ -697,4 +652,327 @@ async function startScanner() {
 
               qrDetected(
                 result.getText()
+              );
+
+            }
+
+          }
+        );
+
+
+    setStatus(
+      "Scanner bereit."
+    );
+
+
+    debug.textContent =
+      "QR-Scanner läuft";
+
+
+  } catch (error) {
+
+    console.error(
+      error
+    );
+
+
+    setStatus(
+      "QR-Scanner konnte nicht gestartet werden."
+    );
+
+
+    debug.textContent =
+      "Scannerfehler: " +
+      error.message;
+
+  }
+
+}
+
+
+/* =========================================
+   SCANNER STOPPEN
+========================================= */
+
+function stopScanner() {
+
+  if (
+    scannerControls &&
+    typeof scannerControls.stop ===
+    "function"
+  ) {
+
+    try {
+
+      scannerControls.stop();
+
+    } catch (error) {}
+
+  }
+
+
+  scannerControls =
+    null;
+
+}
+
+
+/* =========================================
+   AN BACKEND SENDEN
+========================================= */
+
+async function sendToBackend(data) {
+
+  try {
+
+    const params =
+      new URLSearchParams();
+
+
+    params.append(
+      "mitgliedsnummer",
+      data.mitgliedsnummer
+    );
+
+
+    params.append(
+      "vorname",
+      data.vorname
+    );
+
+
+    params.append(
+      "nachname",
+      data.nachname
+    );
+
+
+    params.append(
+      "kuerzel",
+      data.kuerzel
+    );
+
+
+    params.append(
+      "bus",
+      data.bus
+    );
+
+
+    params.append(
+      "geraet",
+      data.geraet
+    );
+
+
+    await fetch(
+      BACKEND_URL,
+      {
+
+        method: "POST",
+
+        mode: "no-cors",
+
+        headers: {
+
+          "Content-Type":
+            "application/x-www-form-urlencoded"
+
+        },
+
+        body:
+          params.toString()
+
+      }
+    );
+
+
+    return true;
+
+
+  } catch (error) {
+
+    console.error(
+      error
+    );
+
+
+    return false;
+
+  }
+
+}
+
+
+/* =========================================
+   SCAN SPEICHERN
+========================================= */
+
+async function saveScan(
+  busValue
+) {
+
+  if (!currentPerson) {
+    return;
+  }
+
+
+  setStatus(
+    "Scan wird gespeichert ..."
+  );
+
+
+  const data = {
+
+    mitgliedsnummer:
+      currentPerson.mitgliedsnummer,
+
+    vorname:
+      currentPerson.vorname,
+
+    nachname:
+      currentPerson.nachname,
+
+    kuerzel:
+      currentPerson.kuerzel,
+
+    bus:
+      busValue,
+
+    geraet:
+      getDeviceName()
+
+  };
+
+
+  const success =
+    await sendToBackend(
+      data
+    );
+
+
+  if (success) {
+
+    setStatus(
+      "✅ Scan gespeichert."
+    );
+
+  } else {
+
+    setStatus(
+      "❌ Übertragung fehlgeschlagen."
+    );
+
+  }
+
+
+  currentPerson =
+    null;
+
+
+  personBox.style.display =
+    "none";
+
+
+  cameraBox.style.display =
+    "block";
+
+
+  overlay.classList.remove(
+    "found"
+  );
+
+
+  processing =
+    false;
+
+
+  startScanner();
+
+}
+
+
+/* =========================================
+   BUTTONS
+========================================= */
+
+document
+  .getElementById("busYes")
+  .addEventListener(
+    "click",
+    function() {
+
+      saveScan("Ja");
+
+    }
+  );
+
+
+document
+  .getElementById("busNo")
+  .addEventListener(
+    "click",
+    function() {
+
+      saveScan("Nein");
+
+    }
+  );
+
+
+startCameraButton
+  .addEventListener(
+    "click",
+    function() {
+
+      startCamera();
+
+    }
+  );
+
+
+document
+  .getElementById("changeDevice")
+  .addEventListener(
+    "click",
+    function() {
+
+      const newName =
+        prompt(
+          "Name dieses Geräts:",
+          getDeviceName()
+        );
+
+
+      if (
+        newName &&
+        newName.trim()
+      ) {
+
+        localStorage.setItem(
+          "busScannerDevice",
+          newName.trim()
+        );
+
+
+        showDeviceName();
+
+      }
+
+    }
+  );
+
+
+/* =========================================
+   START
+========================================= */
+
+showDeviceName();
+
+</script>
+
+
+</body>
+
+</html>
 ```
