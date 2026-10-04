@@ -1,0 +1,148 @@
+```html
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Kamera-Test</title>
+
+  <style>
+
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      text-align: center;
+    }
+
+    video {
+      width: 100%;
+      max-width: 600px;
+      margin-top: 20px;
+      background: black;
+      border-radius: 12px;
+    }
+
+    button {
+      width: 100%;
+      max-width: 600px;
+      padding: 18px;
+      font-size: 20px;
+      margin-top: 20px;
+    }
+
+    #status {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+  <h1>📷 Kamera-Test</h1>
+
+  <button id="start">
+    Kamera starten
+  </button>
+
+  <div id="status">
+    Noch nicht gestartet
+  </div>
+
+  <video
+    id="video"
+    autoplay
+    muted
+    playsinline>
+  </video>
+
+
+<script>
+
+const video =
+  document.getElementById("video");
+
+const status =
+  document.getElementById("status");
+
+const button =
+  document.getElementById("start");
+
+
+button.addEventListener(
+  "click",
+  async function() {
+
+    status.textContent =
+      "Kamera wird angefordert ...";
+
+
+    try {
+
+      if (
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia
+      ) {
+
+        throw new Error(
+          "getUserMedia wird von diesem Browser nicht unterstützt."
+        );
+
+      }
+
+
+      const stream =
+        await navigator.mediaDevices.getUserMedia({
+
+          video: {
+            facingMode: "environment"
+          },
+
+          audio: false
+
+        });
+
+
+      video.srcObject =
+        stream;
+
+
+      await video.play();
+
+
+      status.textContent =
+        "✅ Kamera funktioniert!";
+
+
+    } catch (error) {
+
+      console.error(error);
+
+
+      status.textContent =
+        "❌ Kamerafehler: " +
+        error.name +
+        " – " +
+        error.message;
+
+    }
+
+  }
+);
+
+</script>
+
+</body>
+
+</html>
+```
