@@ -220,7 +220,20 @@
 
   </div>
 
+  <div class="card">
 
+  <button
+    id="exportToday"
+    style="
+      background:#0d6efd;
+      color:white;
+      font-size:17px;
+    "
+  >
+    📊 Tagesabschluss / Excel
+  </button>
+
+</div>
   <div
     id="device"
     class="card">
@@ -1341,7 +1354,34 @@ function finishScan() {
 
 }
 
+/* =========================================
+   TAGESABSCHLUSS / EXCEL
+========================================= */
 
+function exportToday() {
+
+  const url =
+    BACKEND_URL +
+    "?aktion=tagesabschluss";
+
+  window.open(
+    url,
+    "_blank"
+  );
+
+}
+
+
+document
+  .getElementById("exportToday")
+  .addEventListener(
+    "click",
+    function() {
+
+      exportToday();
+
+    }
+  );
 /* =========================================
    BUTTONS
 ========================================= */
