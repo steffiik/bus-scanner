@@ -10,8 +10,8 @@
 
   <title>Bus-Scanner</title>
 
-  <!-- QR-Erkennung -->
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <!-- ZXing: Fallback für Browser ohne BarcodeDetector -->
+  <script src="https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js"></script>
 
   <style>
     * {
@@ -21,9 +21,9 @@
     body {
       margin: 0;
       padding: 12px;
-      font-family: Arial, sans-serif;
       background: #f3f3f3;
       color: #222;
+      font-family: Arial, sans-serif;
     }
 
     .container {
@@ -47,9 +47,9 @@
     #cameraBox {
       position: relative;
       width: 100%;
+      background: black;
       overflow: hidden;
       border-radius: 14px;
-      background: black;
     }
 
     #video {
@@ -62,17 +62,12 @@
       position: absolute;
       left: 50%;
       top: 50%;
-      width: 70%;
+      width: 72%;
       aspect-ratio: 1 / 1;
       transform: translate(-50%, -50%);
       border: 4px solid #888;
       border-radius: 12px;
       pointer-events: none;
-      transition: border-color 0.15s;
-    }
-
-    #scanOverlay.scanning {
-      border-color: #777;
     }
 
     #scanOverlay.found {
@@ -110,6 +105,7 @@
       margin-top: 12px;
       font-size: 19px;
       font-weight: bold;
+      cursor: pointer;
     }
 
     #busYes {
@@ -157,8 +153,11 @@
       margin-top: 12px;
     }
 
-    #canvas {
-      display: none;
+    #debug {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #777;
+      text-align: center;
     }
   </style>
 </head>
@@ -180,9 +179,9 @@
 
       <video
         id="video"
-        playsinline
         autoplay
-        muted>
+        muted
+        playsinline>
       </video>
 
       <div id="scanOverlay"></div>
@@ -239,13 +238,16 @@
 
   </div>
 
+  <div id="debug"></div>
+
 </div>
 
 
-<canvas id="canvas"></canvas>
+<!-- Unsichtbares Canvas -->
+<canvas id="canvas" style="display:none;"></canvas>
 
 
-<!-- Unsichtbarer Bereich für Apps Script -->
+<!-- Unsichtbares iframe für Apps Script -->
 <iframe
   id="submitFrame"
   name="submitFrame"
@@ -256,11 +258,20 @@
 <script>
 
   /*
-   * DEINE APPS-SCRIPT-WEB-APP
+   * ==========================================
+   * APPS SCRIPT BACKEND
+   * ==========================================
    */
+
   const BACKEND_URL =
     "https://script.google.com/macros/s/AKfycbxOoSLZAGBdLQs1MXeNvsLtgLY0yDi1FxMnx8cCNmTExS-w9SZrl2ylF_tLduIt0M9-zQ/exec";
 
+
+  /*
+   * ==========================================
+   * ELEMENTE
+   * ==========================================
+   */
 
   const video =
     document.getElementById("video");
@@ -269,9 +280,7 @@
     document.getElementById("canvas");
 
   const ctx =
-    canvas.getContext("2d", {
-      willReadFrequently: true
-    });
+    canvas.getContext("2d");
 
   const overlay =
     document.getElementById("scanOverlay");
@@ -282,13 +291,31 @@
   const status =
     document.getElementById("status");
 
-  let cameraStream = null;
+  const debug =
+    document.getElementById("debug");
+
+
+  /*
+   * ==========================================
+   * VARIABLEN
+   * ==========================================
+   */
+
+  let stream = null;
 
   let scanning = false;
 
+  let processingScan = false;
+
   let currentPerson = null;
 
-  let processingScan = false;
+  let barcodeDetector = null;
+
+  let zxingReader = null;
+
+  let usingBarcodeDetector = false;
+
+  let zxingControls = null;
 
 
   const QUEUE_KEY =
@@ -299,9 +326,9 @@
 
 
   /*
-   * -----------------------------------------
-   * Gerät
-   * -----------------------------------------
+   * ==========================================
+   * GERÄT
+   * ==========================================
    */
 
   function getDeviceName() {
@@ -340,9 +367,9 @@
 
 
   /*
-   * -----------------------------------------
-   * Status
-   * -----------------------------------------
+   * ==========================================
+   * STATUS
+   * ==========================================
    */
 
   function setStatus(text) {
@@ -352,9 +379,9 @@
 
 
   /*
-   * -----------------------------------------
-   * QR-Code auslesen
-   * -----------------------------------------
+   * ==========================================
+   * QR-INHALT AUSWERTEN
+   * ==========================================
    */
 
   function parseQrCode(text) {
@@ -375,14 +402,10 @@
       }
 
       const key =
-        part
-          .substring(0, index)
-          .trim();
+        part.substring(0, index).trim();
 
       const value =
-        part
-          .substring(index + 1)
-          .trim();
+        part.substring(index + 1).trim();
 
       result[key] = value;
 
@@ -392,7 +415,7 @@
     if (!result.Mitgliedsnummer) {
 
       throw new Error(
-        "Keine Mitgliedsnummer gefunden."
+        "Keine Mitgliedsnummer im QR-Code."
       );
     }
 
@@ -416,21 +439,80 @@
 
 
   /*
-   * -----------------------------------------
-   * Person anzeigen
-   * -----------------------------------------
+   * ==========================================
+   * ERKANNTEN QR-CODE VERARBEITEN
+   * ==========================================
+   */
+
+  function handleDetectedText(text) {
+
+    if (
+      processingScan ||
+      !text
+    ) {
+      return;
+    }
+
+
+    console.log(
+      "QR-Code erkannt:",
+      text
+    );
+
+
+    try {
+
+      const person =
+        parseQrCode(text);
+
+
+      processingScan = true;
+
+      scanning = false;
+
+      overlay.classList.add(
+        "found"
+      );
+
+
+      stopScanning();
+
+
+      showPerson(person);
+
+
+    } catch (error) {
+
+      console.log(
+        "QR erkannt, aber Inhalt passt nicht:",
+        text
+      );
+
+      debug.textContent =
+        "QR erkannt – Format wird geprüft ...";
+    }
+  }
+
+
+  /*
+   * ==========================================
+   * PERSON ANZEIGEN
+   * ==========================================
    */
 
   function showPerson(person) {
 
     currentPerson = person;
 
+
     document.getElementById(
       "personName"
     ).textContent =
-      person.vorname +
-      " " +
-      person.nachname;
+      (
+        person.vorname +
+        " " +
+        person.nachname
+      ).trim();
 
 
     document.getElementById(
@@ -452,9 +534,7 @@
       "none";
 
 
-    document.getElementById(
-      "cameraMessage"
-    ).style.display =
+    cameraMessage.style.display =
       "none";
 
 
@@ -465,9 +545,9 @@
 
 
   /*
-   * -----------------------------------------
-   * Kamera starten
-   * -----------------------------------------
+   * ==========================================
+   * KAMERA
+   * ==========================================
    */
 
   async function startCamera() {
@@ -478,7 +558,7 @@
         "Kamera wird gestartet ...";
 
 
-      cameraStream =
+      stream =
         await navigator.mediaDevices.getUserMedia({
 
           video: {
@@ -503,7 +583,7 @@
 
 
       video.srcObject =
-        cameraStream;
+        stream;
 
 
       await video.play();
@@ -514,16 +594,11 @@
 
 
       setStatus(
-        "Bereit für den nächsten Scan."
+        "Scanner bereit."
       );
 
 
-      scanning = true;
-
-
-      requestAnimationFrame(
-        scanFrame
-      );
+      await startBarcodeScanner();
 
 
     } catch (error) {
@@ -536,123 +611,271 @@
       setStatus(
         "Bitte Kamerazugriff erlauben."
       );
+
     }
   }
 
 
   /*
-   * -----------------------------------------
-   * QR-Code suchen
-   * -----------------------------------------
+   * ==========================================
+   * SCANNER STARTEN
+   *
+   * 1. BarcodeDetector
+   * 2. ZXing als Fallback
+   * ==========================================
    */
 
-  function scanFrame() {
+  async function startBarcodeScanner() {
 
-    if (!scanning) {
-      return;
-    }
-
+    /*
+     * ----------------------------------------
+     * VARIANTE 1: BarcodeDetector
+     * ----------------------------------------
+     */
 
     if (
-      video.readyState ===
-      video.HAVE_ENOUGH_DATA
+      "BarcodeDetector" in window
     ) {
 
-      const width =
-        video.videoWidth;
+      try {
 
-      const height =
-        video.videoHeight;
-
-
-      if (width > 0 && height > 0) {
-
-        canvas.width = width;
-        canvas.height = height;
-
-
-        ctx.drawImage(
-          video,
-          0,
-          0,
-          width,
-          height
-        );
-
-
-        const imageData =
-          ctx.getImageData(
-            0,
-            0,
-            width,
-            height
-          );
-
-
-        const code =
-          jsQR(
-            imageData.data,
-            imageData.width,
-            imageData.height,
-            {
-              inversionAttempts:
-                "attemptBoth"
-            }
-          );
+        let supportedFormats = [];
 
 
         if (
-          code &&
-          code.data &&
-          !processingScan
+          typeof BarcodeDetector.getSupportedFormats ===
+          "function"
         ) {
 
-          processingScan = true;
-
-          overlay.classList.add(
-            "found"
-          );
-
-
-          try {
-
-            const person =
-              parseQrCode(
-                code.data
-              );
-
-
-            scanning = false;
-
-            showPerson(person);
-
-
-          } catch (error) {
-
-            console.log(
-              "QR erkannt, aber Inhalt ungültig:",
-              code.data
-            );
-
-            processingScan = false;
-
-          }
+          supportedFormats =
+            await BarcodeDetector.getSupportedFormats();
 
         }
+
+
+        if (
+          supportedFormats.includes("qr_code")
+        ) {
+
+          barcodeDetector =
+            new BarcodeDetector({
+              formats: ["qr_code"]
+            });
+
+
+          usingBarcodeDetector =
+            true;
+
+
+          debug.textContent =
+            "QR-Erkennung: BarcodeDetector";
+
+
+          scanning = true;
+
+
+          barcodeDetectorLoop();
+
+
+          return;
+
+        }
+
+      } catch (error) {
+
+        console.log(
+          "BarcodeDetector nicht verfügbar:",
+          error
+        );
+
       }
     }
 
 
-    requestAnimationFrame(
-      scanFrame
-    );
+    /*
+     * ----------------------------------------
+     * VARIANTE 2: ZXing
+     * ----------------------------------------
+     */
+
+    debug.textContent =
+      "QR-Erkennung: ZXing";
+
+
+    startZXingScanner();
   }
 
 
   /*
-   * -----------------------------------------
-   * Warteschlange
-   * -----------------------------------------
+   * ==========================================
+   * BARCODEDETECTOR LOOP
+   * ==========================================
+   */
+
+  async function barcodeDetectorLoop() {
+
+    if (
+      !scanning ||
+      !barcodeDetector ||
+      processingScan
+    ) {
+      return;
+    }
+
+
+    try {
+
+      const results =
+        await barcodeDetector.detect(
+          video
+        );
+
+
+      if (
+        results &&
+        results.length > 0
+      ) {
+
+        const qr =
+          results.find(
+            item =>
+              item.format ===
+              "qr_code"
+          );
+
+
+        if (
+          qr &&
+          qr.rawValue
+        ) {
+
+          handleDetectedText(
+            qr.rawValue
+          );
+
+          return;
+        }
+      }
+
+    } catch (error) {
+
+      console.log(
+        "BarcodeDetector Fehler:",
+        error
+      );
+    }
+
+
+    if (scanning) {
+
+      requestAnimationFrame(
+        barcodeDetectorLoop
+      );
+    }
+  }
+
+
+  /*
+   * ==========================================
+   * ZXING FALLBACK
+   * ==========================================
+   */
+
+  async function startZXingScanner() {
+
+    try {
+
+      if (
+        !window.ZXingBrowser
+      ) {
+
+        throw new Error(
+          "ZXing konnte nicht geladen werden."
+        );
+      }
+
+
+      zxingReader =
+        new ZXingBrowser.BrowserQRCodeReader();
+
+
+      scanning = true;
+
+
+      /*
+       * Wir verwenden die bereits geöffnete
+       * Kamera.
+       */
+      zxingControls =
+        await zxingReader.decodeFromVideoElement(
+          video,
+          (result, error) => {
+
+            if (
+              result &&
+              result.getText()
+            ) {
+
+              handleDetectedText(
+                result.getText()
+              );
+
+            }
+
+          }
+        );
+
+
+    } catch (error) {
+
+      console.error(
+        "ZXing Fehler:",
+        error
+      );
+
+
+      setStatus(
+        "QR-Erkennung konnte nicht gestartet werden."
+      );
+
+
+      debug.textContent =
+        "Fehler bei BarcodeDetector und ZXing.";
+    }
+  }
+
+
+  /*
+   * ==========================================
+   * SCANNER STOPPEN
+   * ==========================================
+   */
+
+  function stopScanning() {
+
+    scanning = false;
+
+
+    if (
+      zxingControls &&
+      typeof zxingControls.stop ===
+      "function"
+    ) {
+
+      try {
+        zxingControls.stop();
+      } catch (e) {}
+    }
+
+
+    zxingControls = null;
+  }
+
+
+  /*
+   * ==========================================
+   * WARTESCHLANGE
+   * ==========================================
    */
 
   function getQueue() {
@@ -693,9 +916,9 @@
 
 
   /*
-   * -----------------------------------------
-   * Apps Script übertragen
-   * -----------------------------------------
+   * ==========================================
+   * AN APPS SCRIPT SENDEN
+   * ==========================================
    */
 
   function sendToBackend(data) {
@@ -740,6 +963,7 @@
 
         geraet:
           data.geraet
+
       };
 
 
@@ -818,7 +1042,9 @@
 
 
   /*
-   * Antwort von Apps Script
+   * ==========================================
+   * APPS SCRIPT ANTWORT
+   * ==========================================
    */
 
   window.addEventListener(
@@ -861,9 +1087,9 @@
 
 
   /*
-   * -----------------------------------------
-   * Warteschlange übertragen
-   * -----------------------------------------
+   * ==========================================
+   * WARTESCHLANGE ÜBERTRAGEN
+   * ==========================================
    */
 
   async function flushQueue() {
@@ -877,7 +1103,9 @@
       getQueue();
 
 
-    if (queue.length === 0) {
+    if (
+      queue.length === 0
+    ) {
       return;
     }
 
@@ -910,7 +1138,6 @@
 
         saveQueue(queue);
 
-
       } else {
 
         break;
@@ -937,9 +1164,9 @@
 
 
   /*
-   * -----------------------------------------
-   * Bus-Auswahl
-   * -----------------------------------------
+   * ==========================================
+   * BUS-AUSWAHL
+   * ==========================================
    */
 
   async function saveCurrentScan(
@@ -982,14 +1209,10 @@
 
 
     /*
-     * Sofort lokal speichern.
+     * Zuerst lokal speichern.
      */
     addToQueue(data);
 
-
-    /*
-     * Person ausblenden.
-     */
 
     document.getElementById(
       "person"
@@ -1003,15 +1226,14 @@
       "block";
 
 
-    document.getElementById(
-      "cameraMessage"
-    ).style.display =
+    cameraMessage.style.display =
       "block";
 
 
     currentPerson = null;
 
     processingScan = false;
+
 
     overlay.classList.remove(
       "found"
@@ -1026,11 +1248,7 @@
       );
 
 
-      scanning = true;
-
-      requestAnimationFrame(
-        scanFrame
-      );
+      await restartScanning();
 
       return;
     }
@@ -1039,18 +1257,47 @@
     await flushQueue();
 
 
-    scanning = true;
-
-    requestAnimationFrame(
-      scanFrame
-    );
+    await restartScanning();
   }
 
 
   /*
-   * -----------------------------------------
-   * Buttons
-   * -----------------------------------------
+   * ==========================================
+   * SCANNER NEU STARTEN
+   * ==========================================
+   */
+
+  async function restartScanning() {
+
+    scanning = true;
+
+
+    setStatus(
+      "Bereit für den nächsten Scan."
+    );
+
+
+    if (
+      usingBarcodeDetector &&
+      barcodeDetector
+    ) {
+
+      requestAnimationFrame(
+        barcodeDetectorLoop
+      );
+
+    } else {
+
+      await startZXingScanner();
+
+    }
+  }
+
+
+  /*
+   * ==========================================
+   * BUTTONS
+   * ==========================================
    */
 
   document.getElementById(
@@ -1078,9 +1325,9 @@
 
 
   /*
-   * -----------------------------------------
-   * Gerät ändern
-   * -----------------------------------------
+   * ==========================================
+   * GERÄT ÄNDERN
+   * ==========================================
    */
 
   document.getElementById(
@@ -1108,6 +1355,7 @@
 
 
         showDeviceName();
+
       }
 
     }
@@ -1115,9 +1363,9 @@
 
 
   /*
-   * -----------------------------------------
-   * Internet
-   * -----------------------------------------
+   * ==========================================
+   * INTERNET
+   * ==========================================
    */
 
   window.addEventListener(
@@ -1160,9 +1408,9 @@
 
 
   /*
-   * -----------------------------------------
-   * Start
-   * -----------------------------------------
+   * ==========================================
+   * START
+   * ==========================================
    */
 
   showDeviceName();
