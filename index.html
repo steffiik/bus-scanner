@@ -248,11 +248,7 @@
 
 
 <!-- Unsichtbares iframe für Apps Script -->
-<iframe
-  id="submitFrame"
-  name="submitFrame"
-  style="display:none;">
-</iframe>
+
 
 
 <script>
@@ -921,160 +917,98 @@
    * ==========================================
    */
 
-  function sendToBackend(data) {
+function sendToBackend(data) {
 
-  return new Promise(resolve => {
+  try {
 
-    const form =
-      document.createElement("form");
+    const params = new URLSearchParams();
 
-    form.method = "POST";
-    form.action = BACKEND_URL;
-    form.target = "submitFrame";
+    params.append(
+      "mitgliedsnummer",
+      data.mitgliedsnummer
+    );
 
-    form.style.display = "none";
+    params.append(
+      "vorname",
+      data.vorname
+    );
+
+    params.append(
+      "nachname",
+      data.nachname
+    );
+
+    params.append(
+      "kuerzel",
+      data.kuerzel
+    );
+
+    params.append(
+      "bus",
+      data.bus
+    );
+
+    params.append(
+      "geraet",
+      data.geraet
+    );
 
 
-    const fields = {
+    /*
+     * Apps Script erlaubt hier keinen normalen
+     * CORS-Aufruf. Deshalb verwenden wir
+     * "no-cors".
+     *
+     * Der Request wird trotzdem an Apps Script
+     * gesendet. Die Antwort können wir dabei
+     * allerdings nicht auslesen.
+     */
 
-      mitgliedsnummer:
-        data.mitgliedsnummer,
+    await fetch(
+      BACKEND_URL,
+      {
+        method: "POST",
 
-      vorname:
-        data.vorname,
+        mode: "no-cors",
 
-      nachname:
-        data.nachname,
+        headers: {
+          "Content-Type":
+            "application/x-www-form-urlencoded"
+        },
 
-      kuerzel:
-        data.kuerzel,
+        body:
+          params.toString()
+      }
+    );
 
-      bus:
-        data.bus,
 
-      geraet:
-        data.geraet
+    /*
+     * Wenn fetch ohne Netzwerkfehler
+     * abgeschlossen wurde, gehen wir davon aus,
+     * dass Apps Script den Datensatz erhalten hat.
+     */
 
+    return {
+      success: true
     };
 
 
-    Object.keys(fields).forEach(key => {
+  } catch (error) {
 
-      const input =
-        document.createElement("input");
-
-      input.type = "hidden";
-      input.name = key;
-      input.value = fields[key] || "";
-
-      form.appendChild(input);
-
-    });
+    console.error(
+      "Übertragungsfehler:",
+      error
+    );
 
 
-    const requestId =
-      data.id;
+    return {
+      success: false,
+      error: error.message
+    };
 
-
-    window.pendingRequest =
-      requestId;
-
-    window.pendingResolve =
-      resolve;
-
-
-    document.body.appendChild(form);
-
-    form.submit();
-
-
-    /*
-     * Formular erst nach dem Absenden
-     * aus dem Dokument entfernen.
-     */
-
-    setTimeout(() => {
-
-      if (form.parentNode) {
-        form.parentNode.removeChild(form);
-      }
-
-    }, 100);
-
-
-    /*
-     * Falls Apps Script nicht antwortet,
-     * nach 15 Sekunden als fehlgeschlagen
-     * behandeln.
-     */
-
-    setTimeout(() => {
-
-      if (
-        window.pendingRequest ===
-        requestId
-      ) {
-
-        window.pendingRequest = null;
-        window.pendingResolve = null;
-
-        resolve({
-          success: false,
-          timeout: true
-        });
-
-      }
-
-    }, 15000);
-
-  });
+  }
 
 }
-
-
-  /*
-   * ==========================================
-   * APPS SCRIPT ANTWORT
-   * ==========================================
-   */
-
-  window.addEventListener(
-    "message",
-    function(event) {
-
-      if (
-        !event.data ||
-        event.data.type !==
-        "busScannerResult"
-      ) {
-        return;
-      }
-
-
-      if (
-        !window.pendingResolve
-      ) {
-        return;
-      }
-
-
-      const resolve =
-        window.pendingResolve;
-
-
-      window.pendingResolve =
-        null;
-
-      window.pendingRequest =
-        null;
-
-
-      resolve(
-        event.data.data
-      );
-
-    }
-  );
 
 
   /*
