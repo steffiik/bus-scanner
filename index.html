@@ -149,6 +149,41 @@
       font-size: 12px;
       color: #777;
     }
+    /* =========================================
+   DOPPELSCAN-WARNUNG
+========================================= */
+
+#duplicateWarning {
+  display: none;
+  position: fixed;
+  z-index: 9999;
+  left: 10px;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #dc3545;
+  color: white;
+  border-radius: 18px;
+  padding: 30px 20px;
+  text-align: center;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+}
+
+#duplicateWarning .warningIcon {
+  font-size: 55px;
+  margin-bottom: 10px;
+}
+
+#duplicateWarning .warningTitle {
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+#duplicateWarning .warningText {
+  font-size: 20px;
+  font-weight: bold;
+}
 
   </style>
 
@@ -157,7 +192,22 @@
 
 <body>
 
+<div id="duplicateWarning">
 
+  <div class="warningIcon">
+    🚨
+  </div>
+
+  <div class="warningTitle">
+    BEREITS ERFASST!
+  </div>
+
+  <div class="warningText">
+    Diese Person wurde heute<br>
+    bereits erfasst.
+  </div>
+
+</div> 
 <div class="container">
 
 
@@ -898,9 +948,45 @@ function qrDetected(text) {
       );
 
 
-      setStatus(
-        "⚠️ Diese Person wurde heute bereits erfasst."
+      if (
+  wasScannedToday(
+    person.mitgliedsnummer
+  )
+) {
+
+  processing = true;
+
+  stopScanner();
+
+  overlay.classList.add(
+    "found"
+  );
+
+  showDuplicateWarning();
+
+  setTimeout(
+    function() {
+
+      hideDuplicateWarning();
+
+      overlay.classList.remove(
+        "found"
       );
+
+      processing = false;
+
+      setStatus(
+        "Scanner bereit."
+      );
+
+      startScanner();
+
+    },
+    3000
+  );
+
+  return;
+}
 
 
       /*
@@ -994,6 +1080,34 @@ function qrDetected(text) {
 
 }
 
+  /* =========================================
+   DOPPELSCAN-WARNUNG
+========================================= */
+
+function showDuplicateWarning() {
+
+  const warning =
+    document.getElementById(
+      "duplicateWarning"
+    );
+
+  warning.style.display =
+    "block";
+
+}
+
+
+function hideDuplicateWarning() {
+
+  const warning =
+    document.getElementById(
+      "duplicateWarning"
+    );
+
+  warning.style.display =
+    "none";
+
+}
 /* =========================================
    KAMERA STARTEN
 ========================================= */
