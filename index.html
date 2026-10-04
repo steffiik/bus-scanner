@@ -287,11 +287,297 @@ const personBox =
 
 let stream = null;
 
-
-
 let currentPerson = null;
 
 let processing = false;
+
+let scanning = false;
+
+
+/* =========================================
+   OFFLINE-SPEICHER
+========================================= */
+
+const QUEUE_KEY =
+  "busScannerOfflineQueue";
+
+
+function getOfflineQueue() {
+
+  try {
+
+    const saved =
+      localStorage.getItem(
+        QUEUE_KEY
+      );
+
+    if (!saved) {
+      return [];
+    }
+
+    const queue =
+      JSON.parse(saved);
+
+    if (!Array.isArray(queue)) {
+      return [];
+    }
+
+    return queue;
+
+  } catch (error) {
+
+    console.error(
+      "Offline-Speicher konnte nicht gelesen werden:",
+      error
+    );
+
+    return [];
+
+  }
+
+}
+
+
+function saveOfflineQueue(queue) {
+
+  localStorage.setItem(
+    QUEUE_KEY,
+    JSON.stringify(queue)
+  );
+
+}
+
+
+function getTodayString() {
+
+  const now =
+    new Date();
+
+  const year =
+    now.getFullYear();
+
+  const month =
+    String(
+      now.getMonth() + 1
+    ).padStart(2, "0");
+
+  const day =
+    String(
+      now.getDate()
+    ).padStart(2, "0");
+
+  return (
+    year +
+    "-" +
+    month +
+    "-" +
+    day
+  );
+
+}
+
+
+function isAlreadyQueuedToday(
+  memberNumber
+) {
+
+  const queue =
+    getOfflineQueue();
+
+  const today =
+    getTodayString();
+
+  return queue.some(
+    function(item) {
+
+      return (
+        item.datum === today &&
+        String(
+          item.mitgliedsnummer
+        ) ===
+        String(memberNumber)
+      );
+
+    }
+  );
+
+}
+
+
+function addToOfflineQueue(data) {
+
+  const queue =
+    getOfflineQueue();
+
+
+  if (
+    isAlreadyQueuedToday(
+      data.mitgliedsnummer
+    )
+  ) {
+
+    return false;
+
+  }
+
+
+  queue.push({
+    datum:
+      getTodayString(),
+
+    erstellt:
+      new Date().toISOString(),
+
+    mitgliedsnummer:
+      data.mitgliedsnummer,
+
+    vorname:
+      data.vorname,
+
+    nachname:
+      data.nachname,
+
+    kuerzel:
+      data.kuerzel,
+
+    bus:
+      data.bus,
+
+    geraet:
+      data.geraet
+  });
+
+
+  saveOfflineQueue(
+    queue
+  );
+
+
+  return true;
+
+}
+
+
+function updateOfflineInfo() {
+
+  const queue =
+    getOfflineQueue();
+
+  const count =
+    queue.length;
+
+
+  if (count > 0) {
+
+    debug.textContent =
+      "⏳ " +
+      count +
+      " Scan(s) warten auf Übertragung.";
+
+  } else {
+
+    debug.textContent =
+      "";
+
+  }
+
+}
+
+
+/* =========================================
+   OFFLINE SCANS SYNCHRONISIEREN
+========================================= */
+
+async function syncOfflineQueue() {
+
+  const queue =
+    getOfflineQueue();
+
+
+  if (
+    queue.length === 0
+  ) {
+
+    updateOfflineInfo();
+
+    return;
+
+  }
+
+
+  if (
+    navigator.onLine === false
+  ) {
+
+    updateOfflineInfo();
+
+    return;
+
+  }
+
+
+  setStatus(
+    "⏳ Gespeicherte Scans werden übertragen ..."
+  );
+
+
+  const remaining = [];
+
+
+  for (
+    let i = 0;
+    i < queue.length;
+    i++
+  ) {
+
+    const item =
+      queue[i];
+
+
+    const success =
+      await sendToBackend(
+        item
+      );
+
+
+    if (!success) {
+
+      remaining.push(
+        item
+      );
+
+    }
+
+  }
+
+
+  saveOfflineQueue(
+    remaining
+  );
+
+
+  updateOfflineInfo();
+
+
+  if (
+    remaining.length === 0
+  ) {
+
+    setStatus(
+      "✅ Alle gespeicherten Scans wurden übertragen."
+    );
+
+  } else {
+
+    setStatus(
+      "📶 " +
+      remaining.length +
+      " Scan(s) warten noch auf Internet."
+    );
+
+  }
+
+}
 
 
 /* =========================================
@@ -634,9 +920,12 @@ function startScanner() {
       document.createElement("canvas");
 
     const context =
-      canvas.getContext("2d", {
-        willReadFrequently: true
-      });
+      canvas.getContext(
+        "2d",
+        {
+          willReadFrequently: true
+        }
+      );
 
 
     scanning = true;
@@ -676,10 +965,6 @@ function startScanner() {
 
       }
 
-
-      /*
-       * Kamerabild auf Canvas zeichnen.
-       */
 
       const width =
         video.videoWidth;
@@ -727,10 +1012,6 @@ function startScanner() {
         );
 
 
-      /*
-       * QR-Code suchen.
-       */
-
       const code =
         jsQR(
           imageData.data,
@@ -764,10 +1045,6 @@ function startScanner() {
       }
 
 
-      /*
-       * Nächsten Kameraframe prüfen.
-       */
-
       requestAnimationFrame(
         scanFrame
       );
@@ -797,6 +1074,7 @@ function startScanner() {
   }
 
 }
+
 
 /* =========================================
    SCANNER STOPPEN
@@ -885,6 +1163,7 @@ async function sendToBackend(data) {
   } catch (error) {
 
     console.error(
+      "Übertragung fehlgeschlagen:",
       error
     );
 
@@ -907,11 +1186,6 @@ async function saveScan(
   if (!currentPerson) {
     return;
   }
-
-
-  setStatus(
-    "Scan wird gespeichert ..."
-  );
 
 
   const data = {
@@ -937,6 +1211,54 @@ async function saveScan(
   };
 
 
+  setStatus(
+    "Scan wird gespeichert ..."
+  );
+
+
+  /*
+   * Wenn das Handy laut Browser
+   * kein Internet hat, sofort
+   * offline speichern.
+   */
+
+  if (
+    navigator.onLine === false
+  ) {
+
+    const added =
+      addToOfflineQueue(
+        data
+      );
+
+
+    if (added) {
+
+      setStatus(
+        "📱 Kein Internet – Scan wurde auf diesem Handy gespeichert."
+      );
+
+    } else {
+
+      setStatus(
+        "⚠️ Diese Person ist auf diesem Handy heute bereits gespeichert."
+      );
+
+    }
+
+
+    finishScan();
+
+    return;
+
+  }
+
+
+  /*
+   * Internet vorhanden:
+   * direkt versuchen zu übertragen.
+   */
+
   const success =
     await sendToBackend(
       data
@@ -949,14 +1271,50 @@ async function saveScan(
       "✅ Scan gespeichert."
     );
 
+
   } else {
 
-    setStatus(
-      "❌ Übertragung fehlgeschlagen."
-    );
+    /*
+     * Übertragung fehlgeschlagen.
+     * Deshalb lokal speichern.
+     */
+
+    const added =
+      addToOfflineQueue(
+        data
+      );
+
+
+    if (added) {
+
+      setStatus(
+        "📱 Internet nicht erreichbar – Scan wurde gespeichert und wird später übertragen."
+      );
+
+    } else {
+
+      setStatus(
+        "⚠️ Scan konnte nicht übertragen werden und ist bereits offline gespeichert."
+      );
+
+    }
 
   }
 
+
+  updateOfflineInfo();
+
+
+  finishScan();
+
+}
+
+
+/* =========================================
+   SCAN ABSCHLIESSEN
+========================================= */
+
+function finishScan() {
 
   currentPerson =
     null;
@@ -1056,10 +1414,46 @@ document
 
 
 /* =========================================
+   INTERNET KOMMT ZURÜCK
+========================================= */
+
+window.addEventListener(
+  "online",
+  function() {
+
+    setStatus(
+      "📶 Internet wieder da – Übertragung wird gestartet ..."
+    );
+
+
+    syncOfflineQueue();
+
+  }
+);
+
+
+/* =========================================
    START
 ========================================= */
 
 showDeviceName();
+
+updateOfflineInfo();
+
+
+/*
+ * Falls beim Öffnen der Seite
+ * bereits Internet vorhanden ist,
+ * nach ausstehenden Scans suchen.
+ */
+
+if (
+  navigator.onLine
+) {
+
+  syncOfflineQueue();
+
+}
 
 </script>
 
@@ -1067,4 +1461,3 @@ showDeviceName();
 </body>
 
 </html>
-```
