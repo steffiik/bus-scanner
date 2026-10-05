@@ -3,155 +3,182 @@
 
 <head>
 
-  <meta charset="UTF-8">
+<meta charset="UTF-8">
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+>
 
-  <title>Bus-Scanner</title>
+<title>Bus-Scanner</title>
 
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
-  <style>
+<style>
 
-    * {
-      box-sizing: border-box;
-    }
+* {
+  box-sizing: border-box;
+}
 
-    body {
-      margin: 0;
-      padding: 12px;
-      background: #f3f3f3;
-      color: #222;
-      font-family: Arial, sans-serif;
-    }
+body {
+  margin: 0;
+  padding: 12px;
+  background: #f3f3f3;
+  color: #222;
+  font-family: Arial, sans-serif;
+}
 
-    .container {
-      max-width: 650px;
-      margin: auto;
-    }
+.container {
+  max-width: 650px;
+  margin: auto;
+}
 
-    h1 {
-      text-align: center;
-      margin: 8px 0 15px;
-    }
+h1 {
+  text-align: center;
+  margin: 8px 0 15px;
+}
 
-    .card {
-      background: white;
-      border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 14px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
-    }
+.card {
+  background: white;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
 
-    #cameraBox {
-      display: none;
-      position: relative;
-      background: black;
-      border-radius: 14px;
-      overflow: hidden;
-    }
+button {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  padding: 18px;
+  margin-top: 12px;
+  font-size: 19px;
+  font-weight: bold;
+}
 
-    #video {
-      display: block;
-      width: 100%;
-      height: auto;
-    }
+#activationBox {
+  max-width: 500px;
+  margin: 40px auto;
+}
 
-    #overlay {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      width: 70%;
-      aspect-ratio: 1;
-      transform: translate(-50%, -50%);
-      border: 4px solid #888;
-      border-radius: 12px;
-      pointer-events: none;
-    }
+#activationBox input {
+  width: 100%;
+  padding: 16px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  font-size: 20px;
+  margin-top: 8px;
+  text-align: center;
+}
 
-    #overlay.found {
-      border-color: #198754;
-    }
+#activateButton {
+  background: #198754;
+  color: white;
+}
 
-    #cameraMessage {
-      text-align: center;
-      padding: 12px;
-      font-weight: bold;
-    }
+#activationStatus {
+  text-align: center;
+  font-weight: bold;
+  margin-top: 15px;
+}
 
-    #startCamera {
-      background: #198754;
-      color: white;
-    }
+#authorizedBox {
+  display: none;
+}
 
-    #person {
-      display: none;
-    }
+#cameraBox {
+  display: none;
+  position: relative;
+  background: black;
+  border-radius: 14px;
+  overflow: hidden;
+}
 
-    #personName {
-      text-align: center;
-      font-size: 26px;
-      font-weight: bold;
-      margin-bottom: 8px;
-    }
+#video {
+  display: block;
+  width: 100%;
+  height: auto;
+}
 
-    #memberNumber {
-      text-align: center;
-      color: #666;
-      margin-bottom: 20px;
-    }
+#overlay {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 70%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 4px solid #888;
+  border-radius: 12px;
+  pointer-events: none;
+}
 
-    button {
-      width: 100%;
-      border: 0;
-      border-radius: 12px;
-      padding: 18px;
-      margin-top: 12px;
-      font-size: 19px;
-      font-weight: bold;
-    }
+#overlay.found {
+  border-color: #198754;
+}
 
-    #busYes {
-      background: #198754;
-      color: white;
-    }
+#cameraMessage {
+  text-align: center;
+  padding: 12px;
+  font-weight: bold;
+}
 
-    #busNo {
-      background: #dc3545;
-      color: white;
-    }
+#startCamera {
+  background: #198754;
+  color: white;
+}
 
-    #changeDevice {
-      background: #ddd;
-      color: #222;
-      font-size: 14px;
-      padding: 10px;
-    }
+#person {
+  display: none;
+}
 
-    #status {
-      text-align: center;
-      font-weight: bold;
-      min-height: 24px;
-    }
+#personName {
+  text-align: center;
+  font-size: 26px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
 
-    #device {
-      text-align: center;
-      color: #666;
-      font-size: 14px;
-    }
+#memberNumber {
+  text-align: center;
+  color: #666;
+  margin-bottom: 20px;
+}
 
-    #debug {
-      margin-top: 10px;
-      text-align: center;
-      font-size: 12px;
-      color: #777;
-    }
-    /* =========================================
-   DOPPELSCAN-WARNUNG
-========================================= */
+#busYes {
+  background: #198754;
+  color: white;
+}
+
+#busNo {
+  background: #dc3545;
+  color: white;
+}
+
+#changeDevice {
+  background: #ddd;
+  color: #222;
+  font-size: 14px;
+  padding: 10px;
+}
+
+#status {
+  text-align: center;
+  font-weight: bold;
+  min-height: 24px;
+}
+
+#device {
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+}
+
+#debug {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: #777;
+}
 
 #duplicateWarning {
   display: none;
@@ -185,12 +212,16 @@
   font-weight: bold;
 }
 
-  </style>
+</style>
 
 </head>
 
-
 <body>
+
+
+<!-- =========================================
+     DOPPEL-SCAN WARNUNG
+========================================= -->
 
 <div id="duplicateWarning">
 
@@ -207,9 +238,71 @@
     bereits erfasst.
   </div>
 
-</div> 
-<div class="container">
+</div>
 
+
+<!-- =========================================
+     FREISCHALTUNG
+========================================= -->
+
+<div
+  id="activationBox"
+  class="card"
+>
+
+  <h1>🔒 Bus-Scanner</h1>
+
+  <p style="text-align:center;">
+    Dieses Gerät muss zuerst freigeschaltet werden.
+  </p>
+
+  <label>
+    Geräte-ID
+  </label>
+
+  <input
+    id="geraeteId"
+    type="text"
+    placeholder="z. B. H01"
+    autocomplete="off"
+  >
+
+  <label
+    style="
+      display:block;
+      margin-top:15px;
+    "
+  >
+    Freischaltcode
+  </label>
+
+  <input
+    id="activationCode"
+    type="password"
+    inputmode="numeric"
+    placeholder="6-stelliger Code"
+    autocomplete="off"
+  >
+
+  <button
+    id="activateButton"
+  >
+    🔓 Gerät freischalten
+  </button>
+
+  <div id="activationStatus"></div>
+
+</div>
+
+
+<!-- =========================================
+     GESAMTER SCANNER
+========================================= -->
+
+<div
+  id="authorizedBox"
+  class="container"
+>
 
   <h1>🚌 Bus-Scanner</h1>
 
@@ -224,15 +317,14 @@
       📷 Kamera starten
     </button>
 
-
     <div id="cameraBox">
 
       <video
         id="video"
         autoplay
         muted
-        playsinline>
-      </video>
+        playsinline
+      ></video>
 
       <div id="overlay"></div>
 
@@ -243,17 +335,16 @@
 
   <div
     id="person"
-    class="card">
+    class="card"
+  >
 
     <div id="personName"></div>
 
     <div id="memberNumber"></div>
 
-
     <button id="busYes">
       Mit dem Bus gefahren
     </button>
-
 
     <button id="busNo">
       Nicht mit dem Bus gefahren
@@ -270,23 +361,27 @@
 
   </div>
 
+
   <div class="card">
 
-  <button
-    id="exportToday"
-    style="
-      background:#0d6efd;
-      color:white;
-      font-size:17px;
-    "
-  >
-    📊 Tagesabschluss / Excel
-  </button>
+    <button
+      id="exportToday"
+      style="
+        background:#0d6efd;
+        color:white;
+        font-size:17px;
+      "
+    >
+      📊 Tagesabschluss / Excel
+    </button>
 
-</div>
+  </div>
+
+
   <div
     id="device"
-    class="card">
+    class="card"
+  >
 
     Gerät:
     <span id="deviceName"></span>
@@ -299,7 +394,6 @@
 
 
   <div id="debug"></div>
-
 
 </div>
 
@@ -345,16 +439,458 @@ const personBox =
 
 
 /* =========================================
-   VARIABLEN
+   FREISCHALTUNG
 ========================================= */
 
-let stream = null;
+const DEVICE_KEY =
+  "busScannerDeviceId";
 
-let currentPerson = null;
+const TOKEN_KEY =
+  "busScannerToken";
 
-let processing = false;
+const DEVICE_NAME_KEY =
+  "busScannerDeviceName";
 
-let scanning = false;
+
+function getStoredDeviceId() {
+
+  return localStorage.getItem(
+    DEVICE_KEY
+  ) || "";
+
+}
+
+
+function getStoredToken() {
+
+  return localStorage.getItem(
+    TOKEN_KEY
+  ) || "";
+
+}
+
+
+function saveAuthorization(
+  geraeteId,
+  geraet,
+  token
+) {
+
+  localStorage.setItem(
+    DEVICE_KEY,
+    geraeteId
+  );
+
+  localStorage.setItem(
+    DEVICE_NAME_KEY,
+    geraet
+  );
+
+  localStorage.setItem(
+    TOKEN_KEY,
+    token
+  );
+
+}
+
+
+function clearAuthorization() {
+
+  localStorage.removeItem(
+    DEVICE_KEY
+  );
+
+  localStorage.removeItem(
+    DEVICE_NAME_KEY
+  );
+
+  localStorage.removeItem(
+    TOKEN_KEY
+  );
+
+}
+
+
+function showActivationBox() {
+
+  document
+    .getElementById(
+      "activationBox"
+    )
+    .style.display =
+    "block";
+
+  document
+    .getElementById(
+      "authorizedBox"
+    )
+    .style.display =
+    "none";
+
+}
+
+
+function showScanner() {
+
+  document
+    .getElementById(
+      "activationBox"
+    )
+    .style.display =
+    "none";
+
+  document
+    .getElementById(
+      "authorizedBox"
+    )
+    .style.display =
+    "block";
+
+  showDeviceName();
+
+}
+
+
+/* =========================================
+   JSONP FREISCHALTUNG
+========================================= */
+
+function activateDevice() {
+
+  const geraeteId =
+    document
+      .getElementById(
+        "geraeteId"
+      )
+      .value
+      .trim();
+
+  const code =
+    document
+      .getElementById(
+        "activationCode"
+      )
+      .value
+      .trim();
+
+  const activationStatus =
+    document
+      .getElementById(
+        "activationStatus"
+      );
+
+
+  if (!geraeteId) {
+
+    activationStatus.textContent =
+      "Bitte Geräte-ID eingeben.";
+
+    return;
+
+  }
+
+
+  if (!code) {
+
+    activationStatus.textContent =
+      "Bitte Freischaltcode eingeben.";
+
+    return;
+
+  }
+
+
+  activationStatus.textContent =
+    "⏳ Freischaltung wird geprüft ...";
+
+
+  const callbackName =
+    "activationCallback_" +
+    Date.now();
+
+
+  window[callbackName] =
+    function(result) {
+
+      try {
+
+        if (
+          result &&
+          result.success
+        ) {
+
+          saveAuthorization(
+
+            result.geraeteId,
+
+            result.geraet,
+
+            result.token
+
+          );
+
+
+          activationStatus.textContent =
+            "✅ Gerät erfolgreich freigeschaltet.";
+
+          showScanner();
+
+
+        } else {
+
+          activationStatus.textContent =
+            "❌ " +
+            (
+              result.message ||
+              "Freischaltung fehlgeschlagen."
+            );
+
+        }
+
+      } finally {
+
+        delete window[
+          callbackName
+        ];
+
+        if (script.parentNode) {
+
+          script.parentNode.removeChild(
+            script
+          );
+
+        }
+
+      }
+
+    };
+
+
+  const script =
+    document.createElement(
+      "script"
+    );
+
+
+  script.src =
+    BACKEND_URL +
+    "?aktion=freischalten" +
+    "&geraeteId=" +
+    encodeURIComponent(
+      geraeteId
+    ) +
+    "&code=" +
+    encodeURIComponent(
+      code
+    ) +
+    "&callback=" +
+    callbackName;
+
+
+  script.onerror =
+    function() {
+
+      activationStatus.textContent =
+        "❌ Server nicht erreichbar.";
+
+      delete window[
+        callbackName
+      ];
+
+      if (script.parentNode) {
+
+        script.parentNode.removeChild(
+          script
+        );
+
+      }
+
+    };
+
+
+  document
+    .body
+    .appendChild(
+      script
+    );
+
+}
+
+
+document
+  .getElementById(
+    "activateButton"
+  )
+  .addEventListener(
+    "click",
+    activateDevice
+  );
+
+
+/* =========================================
+   GERÄT
+========================================= */
+
+function getDeviceName() {
+
+  return (
+    localStorage.getItem(
+      DEVICE_NAME_KEY
+    ) ||
+    "Unbekannt"
+  );
+
+}
+
+
+function showDeviceName() {
+
+  document
+    .getElementById(
+      "deviceName"
+    )
+    .textContent =
+    getDeviceName();
+
+}
+
+
+/* =========================================
+   DUPLIKATE AUF DIESEM HANDY
+========================================= */
+
+const SCANNED_TODAY_KEY =
+  "busScannerScannedToday";
+
+
+function getScannedToday() {
+
+  try {
+
+    const saved =
+      localStorage.getItem(
+        SCANNED_TODAY_KEY
+      );
+
+    if (!saved) {
+      return [];
+    }
+
+    const data =
+      JSON.parse(saved);
+
+    if (!Array.isArray(data)) {
+      return [];
+    }
+
+    return data;
+
+  } catch (error) {
+
+    return [];
+
+  }
+
+}
+
+
+function saveScannedToday(
+  data
+) {
+
+  localStorage.setItem(
+    SCANNED_TODAY_KEY,
+    JSON.stringify(data)
+  );
+
+}
+
+
+function getTodayString() {
+
+  const now =
+    new Date();
+
+  return (
+    now.getFullYear() +
+    "-" +
+    String(
+      now.getMonth() + 1
+    ).padStart(2, "0") +
+    "-" +
+    String(
+      now.getDate()
+    ).padStart(2, "0")
+  );
+
+}
+
+
+function wasScannedToday(
+  memberNumber
+) {
+
+  const today =
+    getTodayString();
+
+  const data =
+    getScannedToday();
+
+  return data.some(
+    function(item) {
+
+      return (
+        item.datum === today &&
+        String(
+          item.mitgliedsnummer
+        ) ===
+        String(memberNumber)
+      );
+
+    }
+  );
+
+}
+
+
+function markScannedToday(
+  memberNumber
+) {
+
+  const data =
+    getScannedToday();
+
+  const today =
+    getTodayString();
+
+
+  if (
+    wasScannedToday(
+      memberNumber
+    )
+  ) {
+
+    return;
+
+  }
+
+
+  data.push({
+
+    datum:
+      today,
+
+    mitgliedsnummer:
+      String(memberNumber)
+
+  });
+
+
+  saveScannedToday(
+    data
+  );
+
+}
 
 
 /* =========================================
@@ -389,11 +925,6 @@ function getOfflineQueue() {
 
   } catch (error) {
 
-    console.error(
-      "Offline-Speicher konnte nicht gelesen werden:",
-      error
-    );
-
     return [];
 
   }
@@ -401,7 +932,9 @@ function getOfflineQueue() {
 }
 
 
-function saveOfflineQueue(queue) {
+function saveOfflineQueue(
+  queue
+) {
 
   localStorage.setItem(
     QUEUE_KEY,
@@ -410,163 +943,6 @@ function saveOfflineQueue(queue) {
 
 }
 
-
-function getTodayString() {
-
-  const now =
-    new Date();
-
-  const year =
-    now.getFullYear();
-
-  const month =
-    String(
-      now.getMonth() + 1
-    ).padStart(2, "0");
-
-  const day =
-    String(
-      now.getDate()
-    ).padStart(2, "0");
-
-  return (
-    year +
-    "-" +
-    month +
-    "-" +
-    day
-  );
-
-}
-
-  /* =========================================
-   HEUTE BEREITS ERFASSTE PERSONEN
-========================================= */
-
-const SCANNED_TODAY_KEY =
-  "busScannerScannedToday";
-
-
-function getScannedToday() {
-
-  try {
-
-    const saved =
-      localStorage.getItem(
-        SCANNED_TODAY_KEY
-      );
-
-    if (!saved) {
-      return [];
-    }
-
-    const data =
-      JSON.parse(saved);
-
-    if (!Array.isArray(data)) {
-      return [];
-    }
-
-    /*
-     * Nur Einträge von heute behalten.
-     */
-
-    const today =
-      getTodayString();
-
-    const result =
-      data.filter(function(item) {
-
-        return (
-          item.datum === today
-        );
-
-      });
-
-    /*
-     * Alte Einträge automatisch entfernen.
-     */
-
-    localStorage.setItem(
-      SCANNED_TODAY_KEY,
-      JSON.stringify(result)
-    );
-
-    return result;
-
-  } catch (error) {
-
-    console.error(
-      "Tagesliste konnte nicht gelesen werden:",
-      error
-    );
-
-    return [];
-
-  }
-
-}
-
-
-function wasScannedToday(memberNumber) {
-
-  const scans =
-    getScannedToday();
-
-  return scans.some(
-    function(item) {
-
-      return (
-        String(item.mitgliedsnummer) ===
-        String(memberNumber)
-      );
-
-    }
-  );
-
-}
-
-
-function markScannedToday(memberNumber) {
-
-  const scans =
-    getScannedToday();
-
-  const alreadyExists =
-    scans.some(
-      function(item) {
-
-        return (
-          String(item.mitgliedsnummer) ===
-          String(memberNumber)
-        );
-
-      }
-    );
-
-
-  if (alreadyExists) {
-    return;
-  }
-
-
-  scans.push({
-
-    datum:
-      getTodayString(),
-
-    mitgliedsnummer:
-      String(memberNumber)
-
-  });
-
-
-  localStorage.setItem(
-    SCANNED_TODAY_KEY,
-    JSON.stringify(scans)
-  );
-
-}
 
 function isAlreadyQueuedToday(
   memberNumber
@@ -577,6 +953,7 @@ function isAlreadyQueuedToday(
 
   const today =
     getTodayString();
+
 
   return queue.some(
     function(item) {
@@ -595,7 +972,9 @@ function isAlreadyQueuedToday(
 }
 
 
-function addToOfflineQueue(data) {
+function addToOfflineQueue(
+  data
+) {
 
   const queue =
     getOfflineQueue();
@@ -613,6 +992,7 @@ function addToOfflineQueue(data) {
 
 
   queue.push({
+
     datum:
       getTodayString(),
 
@@ -635,14 +1015,20 @@ function addToOfflineQueue(data) {
       data.bus,
 
     geraet:
-      data.geraet
+      data.geraet,
+
+    geraeteId:
+      data.geraeteId,
+
+    token:
+      data.token
+
   });
 
 
   saveOfflineQueue(
     queue
   );
-
 
   return true;
 
@@ -676,7 +1062,7 @@ function updateOfflineInfo() {
 
 
 /* =========================================
-   OFFLINE SCANS SYNCHRONISIEREN
+   OFFLINE SYNCHRONISIEREN
 ========================================= */
 
 async function syncOfflineQueue() {
@@ -690,7 +1076,6 @@ async function syncOfflineQueue() {
   ) {
 
     updateOfflineInfo();
-
     return;
 
   }
@@ -701,7 +1086,6 @@ async function syncOfflineQueue() {
   ) {
 
     updateOfflineInfo();
-
     return;
 
   }
@@ -772,60 +1156,6 @@ async function syncOfflineQueue() {
 
 
 /* =========================================
-   GERÄT
-========================================= */
-
-function getDeviceName() {
-
-  let name =
-    localStorage.getItem(
-      "busScannerDevice"
-    );
-
-
-  if (!name) {
-
-    name =
-      prompt(
-        "Name dieses Geräts:",
-        "Handy 1"
-      );
-
-
-    if (
-      !name ||
-      !name.trim()
-    ) {
-
-      name = "Unbekannt";
-
-    }
-
-
-    localStorage.setItem(
-      "busScannerDevice",
-      name.trim()
-    );
-
-  }
-
-
-  return name;
-
-}
-
-
-function showDeviceName() {
-
-  document.getElementById(
-    "deviceName"
-  ).textContent =
-    getDeviceName();
-
-}
-
-
-/* =========================================
    STATUS
 ========================================= */
 
@@ -848,32 +1178,39 @@ function parseQrCode(text) {
 
   text
     .split(";")
-    .forEach(function(part) {
+    .forEach(
+      function(part) {
 
-      const index =
-        part.indexOf("=");
+        const index =
+          part.indexOf("=");
+
+        if (index === -1) {
+          return;
+        }
 
 
-      if (index === -1) {
-        return;
+        const key =
+          part
+            .substring(
+              0,
+              index
+            )
+            .trim();
+
+
+        const value =
+          part
+            .substring(
+              index + 1
+            )
+            .trim();
+
+
+        result[key] =
+          value;
+
       }
-
-
-      const key =
-        part
-          .substring(0, index)
-          .trim();
-
-
-      const value =
-        part
-          .substring(index + 1)
-          .trim();
-
-
-      result[key] = value;
-
-    });
+    );
 
 
   if (
@@ -907,6 +1244,34 @@ function parseQrCode(text) {
 
 
 /* =========================================
+   DUPLIKAT-WARNUNG
+========================================= */
+
+function showDuplicateWarning() {
+
+  document
+    .getElementById(
+      "duplicateWarning"
+    )
+    .style.display =
+    "block";
+
+}
+
+
+function hideDuplicateWarning() {
+
+  document
+    .getElementById(
+      "duplicateWarning"
+    )
+    .style.display =
+    "none";
+
+}
+
+
+/* =========================================
    QR ERKANNT
 ========================================= */
 
@@ -928,80 +1293,37 @@ function qrDetected(text) {
       parseQrCode(text);
 
 
-    /*
-     * Prüfen, ob diese Person auf
-     * diesem Handy heute schon erfasst wurde.
-     */
-
     if (
       wasScannedToday(
         person.mitgliedsnummer
       )
     ) {
 
-      processing = true;
+      processing =
+        true;
 
       stopScanner();
+
 
       overlay.classList.add(
         "found"
       );
 
 
-      if (
-  wasScannedToday(
-    person.mitgliedsnummer
-  )
-) {
+      showDuplicateWarning();
 
-  processing = true;
-
-  stopScanner();
-
-  overlay.classList.add(
-    "found"
-  );
-
-  showDuplicateWarning();
-
-  setTimeout(
-    function() {
-
-      hideDuplicateWarning();
-
-      overlay.classList.remove(
-        "found"
-      );
-
-      processing = false;
-
-      setStatus(
-        "Scanner bereit."
-      );
-
-      startScanner();
-
-    },
-    3000
-  );
-
-  return;
-}
-
-
-      /*
-       * Kurz anzeigen und danach
-       * automatisch weiterscannen.
-       */
 
       setTimeout(
         function() {
+
+          hideDuplicateWarning();
 
           overlay.classList.remove(
             "found"
           );
 
-          processing = false;
+          processing =
+            false;
 
           setStatus(
             "Scanner bereit."
@@ -1010,7 +1332,7 @@ function qrDetected(text) {
           startScanner();
 
         },
-        2500
+        3000
       );
 
 
@@ -1019,14 +1341,11 @@ function qrDetected(text) {
     }
 
 
-    /*
-     * Person ist heute noch nicht
-     * auf diesem Handy erfasst worden.
-     */
-
-    processing = true;
+    processing =
+      true;
 
     stopScanner();
+
 
     overlay.classList.add(
       "found"
@@ -1037,9 +1356,11 @@ function qrDetected(text) {
       person;
 
 
-    document.getElementById(
-      "personName"
-    ).textContent =
+    document
+      .getElementById(
+        "personName"
+      )
+      .textContent =
       (
         person.vorname +
         " " +
@@ -1047,9 +1368,11 @@ function qrDetected(text) {
       ).trim();
 
 
-    document.getElementById(
-      "memberNumber"
-    ).textContent =
+    document
+      .getElementById(
+        "memberNumber"
+      )
+      .textContent =
       "Mitgliedsnummer: " +
       person.mitgliedsnummer;
 
@@ -1080,37 +1403,19 @@ function qrDetected(text) {
 
 }
 
-  /* =========================================
-   DOPPELSCAN-WARNUNG
-========================================= */
 
-function showDuplicateWarning() {
-
-  const warning =
-    document.getElementById(
-      "duplicateWarning"
-    );
-
-  warning.style.display =
-    "block";
-
-}
-
-
-function hideDuplicateWarning() {
-
-  const warning =
-    document.getElementById(
-      "duplicateWarning"
-    );
-
-  warning.style.display =
-    "none";
-
-}
 /* =========================================
-   KAMERA STARTEN
+   KAMERA
 ========================================= */
+
+let stream = null;
+
+let currentPerson = null;
+
+let processing = false;
+
+let scanning = false;
+
 
 async function startCamera() {
 
@@ -1150,7 +1455,8 @@ async function startCamera() {
 
         video: {
 
-          facingMode: "environment"
+          facingMode:
+            "environment"
 
         },
 
@@ -1233,7 +1539,10 @@ function startScanner() {
 
 
     const canvas =
-      document.createElement("canvas");
+      document.createElement(
+        "canvas"
+      );
+
 
     const context =
       canvas.getContext(
@@ -1244,7 +1553,8 @@ function startScanner() {
       );
 
 
-    scanning = true;
+    scanning =
+      true;
 
 
     setStatus(
@@ -1345,16 +1655,9 @@ function startScanner() {
         code.data
       ) {
 
-        console.log(
-          "QR-Code erkannt:",
-          code.data
-        );
-
-
         qrDetected(
           code.data
         );
-
 
         return;
 
@@ -1398,16 +1701,19 @@ function startScanner() {
 
 function stopScanner() {
 
-  scanning = false;
+  scanning =
+    false;
 
 }
 
 
 /* =========================================
-   AN BACKEND SENDEN
+   BACKEND
 ========================================= */
 
-async function sendToBackend(data) {
+async function sendToBackend(
+  data
+) {
 
   try {
 
@@ -1451,13 +1757,29 @@ async function sendToBackend(data) {
     );
 
 
+    params.append(
+      "geraeteId",
+      data.geraeteId ||
+      getStoredDeviceId()
+    );
+
+
+    params.append(
+      "token",
+      data.token ||
+      getStoredToken()
+    );
+
+
     await fetch(
       BACKEND_URL,
       {
 
-        method: "POST",
+        method:
+          "POST",
 
-        mode: "no-cors",
+        mode:
+          "no-cors",
 
         headers: {
 
@@ -1491,6 +1813,10 @@ async function sendToBackend(data) {
 }
 
 
+/* =========================================
+   SCAN SPEICHERN
+========================================= */
+
 async function saveScan(
   busValue
 ) {
@@ -1518,7 +1844,13 @@ async function saveScan(
       busValue,
 
     geraet:
-      getDeviceName()
+      getDeviceName(),
+
+    geraeteId:
+      getStoredDeviceId(),
+
+    token:
+      getStoredToken()
 
   };
 
@@ -1527,11 +1859,6 @@ async function saveScan(
     "Scan wird gespeichert ..."
   );
 
-
-  /*
-   * Wenn das Handy kein Internet hat:
-   * lokal speichern.
-   */
 
   if (
     navigator.onLine === false
@@ -1544,11 +1871,6 @@ async function saveScan(
 
 
     if (added) {
-
-      /*
-       * Auch lokal als bereits
-       * erfasst markieren.
-       */
 
       markScannedToday(
         data.mitgliedsnummer
@@ -1577,11 +1899,6 @@ async function saveScan(
   }
 
 
-  /*
-   * Internet vorhanden:
-   * direkt an das Backend senden.
-   */
-
   const success =
     await sendToBackend(
       data
@@ -1589,10 +1906,6 @@ async function saveScan(
 
 
   if (success) {
-
-    /*
-     * Auf diesem Handy als erfasst markieren.
-     */
 
     markScannedToday(
       data.mitgliedsnummer
@@ -1603,13 +1916,7 @@ async function saveScan(
       "✅ Scan gespeichert."
     );
 
-
   } else {
-
-    /*
-     * Übertragung fehlgeschlagen.
-     * Lokal speichern.
-     */
 
     const added =
       addToOfflineQueue(
@@ -1640,7 +1947,6 @@ async function saveScan(
 
 
   updateOfflineInfo();
-
 
   finishScan();
 
@@ -1678,8 +1984,9 @@ function finishScan() {
 
 }
 
+
 /* =========================================
-   TAGESABSCHLUSS / EXCEL
+   EXCEL
 ========================================= */
 
 function exportToday() {
@@ -1687,6 +1994,7 @@ function exportToday() {
   const url =
     BACKEND_URL +
     "?aktion=tagesabschluss";
+
 
   window.open(
     url,
@@ -1697,38 +2005,46 @@ function exportToday() {
 
 
 document
-  .getElementById("exportToday")
+  .getElementById(
+    "exportToday"
+  )
   .addEventListener(
     "click",
-    function() {
-
-      exportToday();
-
-    }
+    exportToday
   );
+
+
 /* =========================================
    BUTTONS
 ========================================= */
 
 document
-  .getElementById("busYes")
+  .getElementById(
+    "busYes"
+  )
   .addEventListener(
     "click",
     function() {
 
-      saveScan("Ja");
+      saveScan(
+        "Ja"
+      );
 
     }
   );
 
 
 document
-  .getElementById("busNo")
+  .getElementById(
+    "busNo"
+  )
   .addEventListener(
     "click",
     function() {
 
-      saveScan("Nein");
+      saveScan(
+        "Nein"
+      );
 
     }
   );
@@ -1737,48 +2053,32 @@ document
 startCameraButton
   .addEventListener(
     "click",
-    function() {
-
-      startCamera();
-
-    }
+    startCamera
   );
 
 
+/* =========================================
+   GERÄT ÄNDERN
+========================================= */
+
 document
-  .getElementById("changeDevice")
+  .getElementById(
+    "changeDevice"
+  )
   .addEventListener(
     "click",
     function() {
 
-      const newName =
-        prompt(
-          "Name dieses Geräts:",
-          getDeviceName()
-        );
-
-
-      if (
-        newName &&
-        newName.trim()
-      ) {
-
-        localStorage.setItem(
-          "busScannerDevice",
-          newName.trim()
-        );
-
-
-        showDeviceName();
-
-      }
+      alert(
+        "Der Gerätename wird über die Gerätefreischaltung verwaltet. Wenn das Gerät gewechselt werden soll, bitte die Freischaltung zurücksetzen."
+      );
 
     }
   );
 
 
 /* =========================================
-   INTERNET KOMMT ZURÜCK
+   INTERNET
 ========================================= */
 
 window.addEventListener(
@@ -1800,27 +2100,46 @@ window.addEventListener(
    START
 ========================================= */
 
-showDeviceName();
+function initializeApp() {
 
-updateOfflineInfo();
+  const deviceId =
+    getStoredDeviceId();
+
+  const token =
+    getStoredToken();
 
 
-/*
- * Falls beim Öffnen der Seite
- * bereits Internet vorhanden ist,
- * nach ausstehenden Scans suchen.
- */
+  if (
+    deviceId &&
+    token
+  ) {
 
-if (
-  navigator.onLine
-) {
+    showScanner();
 
-  syncOfflineQueue();
+    updateOfflineInfo();
+
+
+    if (
+      navigator.onLine
+    ) {
+
+      syncOfflineQueue();
+
+    }
+
+
+  } else {
+
+    showActivationBox();
+
+  }
 
 }
 
-</script>
 
+initializeApp();
+
+</script>
 
 </body>
 
