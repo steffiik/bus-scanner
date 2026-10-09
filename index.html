@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Bus-Scanner</title><script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-<style>*{box-sizing:border-box}body{margin:0;padding:12px;background:#f3f3f3;color:#222;font-family:Arial,sans-serif}.container{max-width:650px;margin:auto}h1{text-align:center}.card{background:white;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px #0002}button,input{width:100%;border-radius:12px;padding:16px;font-size:18px;margin-top:10px}button{border:0;font-weight:bold}input{border:1px solid #bbb}button:disabled{opacity:.5}.green{background:#198754;color:white}.red{background:#dc3545;color:white}.blue{background:#0d6efd;color:white}.gray{background:#ddd;color:#222}#activationBox,#person,#manualBox,#cameraBox{display:none}#cameraBox{position:relative;background:black;border-radius:14px;overflow:hidden}video{display:block;width:100%}#overlay{position:absolute;left:15%;top:15%;width:70%;height:70%;border:4px solid #888;border-radius:12px;pointer-events:none}#overlay.found{border-color:#198754}#personName,#memberNumber,#status,#cameraMessage,#device{text-align:center}#personName{font-size:25px;font-weight:bold}#memberNumber{color:#666;margin-top:8px}#status{font-weight:bold}#debug{font-size:13px;text-align:center;color:#555}#duplicateWarning{display:none;position:fixed;z-index:9999;left:10px;right:10px;top:50%;transform:translateY(-50%);background:#dc3545;color:white;border-radius:18px;padding:30px 20px;text-align:center;box-shadow:0 8px 30px #0006;font-size:25px;font-weight:bold}</style></head>
+<style>*{box-sizing:border-box}body{margin:0;padding:12px;background:#f3f3f3;color:#222;font-family:Arial,sans-serif}.container{max-width:650px;margin:auto}h1{text-align:center}.card{background:white;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px #0002}button,input{width:100%;border-radius:12px;padding:16px;font-size:18px;margin-top:10px}button{border:0;font-weight:bold}input{border:1px solid #bbb}button:disabled{opacity:.5}.green{background:#198754;color:white}.red{background:#dc3545;color:white}.blue{background:#0d6efd;color:white}.gray{background:#ddd;color:#222}#activationBox,#person,#manualBox,#cameraBox{display:none}#cameraBox{position:relative;background:black;border-radius:14px;overflow:hidden}video{display:block;width:100%}#overlay{position:absolute;left:15%;top:15%;width:70%;height:70%;border:4px solid #888;border-radius:12px;pointer-events:none}#overlay.found{border-color:#198754}#personName,#memberNumber,#status,#cameraMessage,#device{text-align:center}#personName{font-size:25px;font-weight:bold}#memberNumber{color:#666;margin-top:8px}#status{font-weight:bold}#debug{font-size:13px;text-align:center;color:#555}#duplicateWarning{display:none;position:fixed;z-index:9999;left:10px;right:10px;top:50%;transform:translateY(-50%);background:#dc3545;color:white;border-radius:18px;padding:30px 20px;text-align:center;box-shadow:0 8px 30px #0006;font-size:25px;font-weight:bold}details.transferDetails{margin-top:12px;border-top:1px solid #ddd;padding-top:10px}details.transferDetails summary{cursor:pointer;font-weight:bold;padding:10px 0}#transferList{list-style:none;padding:0;margin:8px 0 0;max-height:360px;overflow:auto}.transferItem{padding:10px 4px;border-bottom:1px solid #eee}.transferItem small{display:block;color:#666;margin-top:3px}.transferItem .error{color:#b42318;font-weight:bold}.transferItem .ok{color:#198754;font-weight:bold}.transferItem .waiting{color:#986400;font-weight:bold}</style></head>
 <body><div id="duplicateWarning">🚨<br>BEREITS ERFASST!<br><small>Diese Person wurde heute bereits erfasst.</small></div>
 <div class="container"><div id="activationBox" class="card"><h1>🔒 Bus-Scanner</h1><p>Dieses Gerät muss freigeschaltet werden.</p><label for="geraeteId">Geräte-ID</label><input id="geraeteId" placeholder="z. B. H01"><label for="activationCode">Freischaltcode</label><input id="activationCode" type="password" inputmode="numeric" placeholder="Freischaltcode"><button id="activateButton" class="green">🔓 Gerät freischalten</button><p id="activationStatus"></p></div>
 <div id="authorizedBox" style="display:none"><h1>🚌 Bus-Scanner</h1><div class="card"><div id="cameraMessage">Kamera noch nicht gestartet.</div><button id="startCamera" class="green">📷 Kamera starten</button><div id="cameraBox"><video id="video" autoplay muted playsinline></video><div id="overlay"></div></div></div>
 <div class="card" id="manualEntryCard"><button id="manualStart" class="gray">✍️ Person ohne QR-Code erfassen</button><div id="manualBox"><label for="manualName">Vor- und Nachname</label><input id="manualName" type="text" maxlength="250" autocomplete="off" placeholder="z. B. Max Mustermann"><button id="manualContinue" class="blue">Weiter zur Bus-Auswahl</button><button id="manualCancel" class="gray">Abbrechen</button></div></div>
 <div id="person" class="card"><div id="personName"></div><div id="memberNumber"></div><button id="busYes" class="green">Mit dem Bus gefahren</button><button id="busNo" class="red">Nicht mit dem Bus gefahren</button><button id="personCancel" class="gray">Abbrechen</button></div>
-<div class="card"><div id="status">Bitte Kamera starten.</div></div><div class="card"><button id="exportToday" class="blue">📊 Tagesabschluss / Excel</button></div><div class="card" id="device">Gerät: <span id="deviceName"></span><button id="changeDevice" class="gray" style="font-size:14px">Freischaltung zurücksetzen</button></div><div id="transferInfo" class="card" aria-live="polite">📊 Bestätigt: <strong id="confirmedCount">0</strong> · ⏳ Offen: <strong id="pendingCount">0</strong> · ⚠️ Fehler: <strong id="failedCount">0</strong><br><small id="transferError"></small></div><div id="debug"></div></div></div>
+<div class="card"><div id="status">Bitte Kamera starten.</div></div><div class="card"><button id="exportToday" class="blue">📊 Tagesabschluss / Excel</button></div><div class="card" id="device">Gerät: <span id="deviceName"></span><button id="changeDevice" class="gray" style="font-size:14px">Freischaltung zurücksetzen</button></div><div id="transferInfo" class="card" aria-live="polite">📊 Bestätigt: <strong id="confirmedCount">0</strong> · ⏳ Offen: <strong id="pendingCount">0</strong> · ⚠️ Fehler: <strong id="failedCount">0</strong><br><small id="transferError"></small><details class="transferDetails" id="transferDetails"><summary>Personen und Übertragungsstatus anzeigen</summary><ul id="transferList"></ul><small>Bestätigte Einträge werden auf diesem Handy ab dieser Version protokolliert (maximal 300).</small></details></div><div id="debug"></div></div></div>
 <script>
 const BACKEND_URL='https://script.google.com/macros/s/AKfycbxOoSLZAGBdLQs1MXeNvsLtgLY0yDi1FxMnx8cCNmTExS-w9SZrl2ylF_tLduIt0M9-zQ/exec';
-const $=id=>document.getElementById(id),DEVICE_KEY='busScannerDeviceId',TOKEN_KEY='busScannerToken',NAME_KEY='busScannerDeviceName',QUEUE_KEY='busScannerOfflineQueue',SCANNED_KEY='busScannerScannedToday';
+const $=id=>document.getElementById(id),DEVICE_KEY='busScannerDeviceId',TOKEN_KEY='busScannerToken',NAME_KEY='busScannerDeviceName',QUEUE_KEY='busScannerOfflineQueue',SCANNED_KEY='busScannerScannedToday',HISTORY_KEY='busScannerTransferHistory';
 let stream=null,currentPerson=null,processing=false,scanning=false,scanGeneration=0,mode='qr',sending=false,syncing=false;
 function setStatus(s){$('status').textContent=s}function getId(){return localStorage.getItem(DEVICE_KEY)||''}function getToken(){return localStorage.getItem(TOKEN_KEY)||''}function getName(){return localStorage.getItem(NAME_KEY)||'Unbekannt'}
 function jsonp(action,params){return new Promise((resolve,reject)=>{const callback='busCb_'+Date.now()+'_'+Math.floor(Math.random()*1e6),script=document.createElement('script');let finished=false;const timeout=setTimeout(()=>finish(new Error('Zeitüberschreitung')),15000);function finish(err,data){if(finished)return;finished=true;clearTimeout(timeout);delete window[callback];script.remove();err?reject(err):resolve(data)}window[callback]=data=>finish(null,data);script.onerror=()=>finish(new Error('Server nicht erreichbar'));script.src=BACKEND_URL+'?'+new URLSearchParams({aktion:action,...params,callback}).toString();document.body.appendChild(script)})}
@@ -28,13 +28,38 @@ function queueScan(data){
   q.push({...data,scanId:newScanId(),datum:today(),erstellt:new Date().toISOString(),state:'pending',attempts:0});
   writeArray(QUEUE_KEY,q);updateQueueInfo();return true;
 }
+function personLabel(item){
+  if(item.typ==='manuell')return String(item.manuellerName||'Manuelle Erfassung');
+  const name=[item.vorname,item.nachname].filter(Boolean).join(' ').trim();
+  return name||('Mitgliedsnummer '+String(item.mitgliedsnummer||'?'));
+}
+function recordTransfer(item,state,message=''){
+  const history=readArray(HISTORY_KEY);
+  const entry={scanId:item.scanId,person:personLabel(item),member:item.mitgliedsnummer||'',bus:item.bus||'',state,message,created:item.erstellt||new Date().toISOString(),updated:new Date().toISOString()};
+  const index=history.findIndex(x=>x.scanId===item.scanId);
+  if(index>=0)history.splice(index,1);
+  history.unshift(entry);
+  writeArray(HISTORY_KEY,history.slice(0,300));
+}
 function updateQueueInfo(){
   const q=readArray(QUEUE_KEY),failed=q.filter(x=>x.state==='failed').length;
   $('pendingCount').textContent=q.length-failed;
   $('failedCount').textContent=failed;
   $('confirmedCount').textContent=Number(localStorage.getItem('busScannerConfirmedCount')||0);
-  $('transferError').textContent=failed?'Bitte Übertragungsfehler prüfen.':'';
+  $('transferError').textContent=failed?'⚠️ '+failed+' Eintrag/Einträge mit Fehler – Liste öffnen.':'';
   $('debug').textContent=q.length?'⏳ '+q.length+' Eintrag/Einträge noch nicht bestätigt.':'';
+  const items=[...q.map(x=>({scanId:x.scanId,person:personLabel(x),member:x.mitgliedsnummer||'',bus:x.bus||'',state:x.state==='failed'?'failed':'pending',message:x.error||'',created:x.erstellt||''})),...readArray(HISTORY_KEY).filter(x=>!q.some(y=>y.scanId===x.scanId))];
+  const list=$('transferList');list.replaceChildren();
+  if(!items.length){const li=document.createElement('li');li.textContent='Noch keine Einträge in dieser Übersicht.';list.appendChild(li);return}
+  for(const item of items){
+    const li=document.createElement('li');li.className='transferItem';
+    const title=document.createElement('div');title.style.fontWeight='bold';title.textContent=item.person;li.appendChild(title);
+    const state=document.createElement('div');
+    state.className=item.state==='success'?'ok':item.state==='failed'?'error':'waiting';
+    state.textContent=item.state==='success'?'✅ Bestätigt':item.state==='failed'?'❌ Fehler: '+(item.message||'Unbekannter Fehler'):'⏳ Offen – wartet auf Serverbestätigung';li.appendChild(state);
+    const detail=document.createElement('small');detail.textContent=(item.member?'Nr. '+item.member+' · ':'')+'Bus: '+item.bus+(item.created?' · '+new Date(item.created).toLocaleString('de-DE'):'');li.appendChild(detail);
+    list.appendChild(li);
+  }
 }
 async function sendToBackend(data){
   const p=new URLSearchParams();for(const [k,v] of Object.entries(data))if(v!==undefined&&v!==null)p.append(k,String(v));
@@ -66,15 +91,14 @@ async function syncOfflineQueue(){
           localStorage.setItem('busScannerConfirmedCount',String(count));
           const idx=readArray(QUEUE_KEY).findIndex(x=>x.scanId===item.scanId);
           if(idx>=0){const current=readArray(QUEUE_KEY);current.splice(idx,1);writeArray(QUEUE_KEY,current)}
-          setStatus('✅ Speicherung im Google Sheet bestätigt.');
+          recordTransfer(item,'success');
         }else{
           const current=readArray(QUEUE_KEY),entry=current.find(x=>x.scanId===item.scanId);
           if(entry){entry.state='failed';entry.error=receipt.message;writeArray(QUEUE_KEY,current)}
-          setStatus('⚠️ '+receipt.message);
-          $('transferError').textContent=receipt.message;
+          recordTransfer(item,'failed',receipt.message||'Server hat den Scan abgelehnt.');
           if(receipt.unauthorized){showActivation('⛔ Gerät gesperrt.');break}
         }
-      }else{setStatus('⏳ Noch keine Serverbestätigung – Eintrag bleibt gespeichert.');break}
+      }else{break}
       updateQueueInfo();
     }
   }finally{syncing=false;updateQueueInfo()}
@@ -97,7 +121,7 @@ async function saveScan(bus){
   const queued=queueScan(data);
   if(queued&&p.typ!=='manuell')markScannedToday(p.mitgliedsnummer);
   finishScan();
-  setStatus(queued?'📱 Lokal gesichert – Übertragung und Bestätigung laufen im Hintergrund.':'⚠️ Person auf diesem Handy bereits erfasst.');
+  setStatus(queued?'📱 '+personLabel(data)+' – lokal gesichert, wird im Hintergrund übertragen.':'⚠️ Person auf diesem Handy bereits erfasst.');
   if(queued)syncOfflineQueue();
 }
 function startManual(){if(processing)return;mode='manuell';stopScanner();$('manualBox').style.display='block';$('manualName').focus();setStatus('Bitte Namen eingeben.')}
