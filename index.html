@@ -6,7 +6,7 @@
 <div id="authorizedBox" style="display:none"><h1>🚌 Bus-Scanner</h1><div class="card"><div id="cameraMessage">Kamera noch nicht gestartet.</div><button id="startCamera" class="green">📷 Kamera starten</button><div id="cameraBox"><video id="video" autoplay muted playsinline></video><div id="overlay"></div></div></div>
 <div class="card" id="manualEntryCard"><button id="manualStart" class="gray">✍️ Person ohne QR-Code erfassen</button><div id="manualBox"><label for="manualName">Vor- und Nachname</label><input id="manualName" type="text" maxlength="250" autocomplete="off" placeholder="z. B. Max Mustermann"><button id="manualContinue" class="blue">Weiter zur Bus-Auswahl</button><button id="manualCancel" class="gray">Abbrechen</button></div></div>
 <div id="person" class="card"><div id="personName"></div><div id="memberNumber"></div><button id="busYes" class="green">Mit dem Bus gefahren</button><button id="busNo" class="red">Nicht mit dem Bus gefahren</button><button id="personCancel" class="gray">Abbrechen</button></div>
-<div class="card"><div id="status">Bitte Kamera starten.</div></div><div class="card"><button id="exportToday" class="blue">📊 Tagesabschluss / Excel</button></div><div class="card" id="device">Gerät: <span id="deviceName"></span><button id="changeDevice" class="gray" style="font-size:14px">Freischaltung zurücksetzen</button></div><div id="debug"></div></div></div>
+<div class="card"><div id="status">Bitte Kamera starten.</div></div><div class="card"><button id="exportToday" class="blue">📊 Tagesabschluss / Excel</button></div><div class="card" id="device">Gerät: <span id="deviceName"></span><button id="changeDevice" class="gray" style="font-size:14px">Freischaltung zurücksetzen</button></div><div id="transferInfo" class="card" aria-live="polite">📊 Bestätigt: <strong id="confirmedCount">0</strong> · ⏳ Offen: <strong id="pendingCount">0</strong> · ⚠️ Fehler: <strong id="failedCount">0</strong><br><small id="transferError"></small></div><div id="debug"></div></div></div>
 <script>
 const BACKEND_URL='https://script.google.com/macros/s/AKfycbxOoSLZAGBdLQs1MXeNvsLtgLY0yDi1FxMnx8cCNmTExS-w9SZrl2ylF_tLduIt0M9-zQ/exec';
 const $=id=>document.getElementById(id),DEVICE_KEY='busScannerDeviceId',TOKEN_KEY='busScannerToken',NAME_KEY='busScannerDeviceName',QUEUE_KEY='busScannerOfflineQueue',SCANNED_KEY='busScannerScannedToday';
@@ -21,10 +21,64 @@ function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth
 function readArray(key){try{const v=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(v)?v:[]}catch(e){return []}}function writeArray(key,arr){localStorage.setItem(key,JSON.stringify(arr))}
 function wasScannedToday(member){return readArray(SCANNED_KEY).some(x=>x.datum===today()&&String(x.mitgliedsnummer)===String(member))}
 function markScannedToday(member){if(wasScannedToday(member))return;const a=readArray(SCANNED_KEY);a.push({datum:today(),mitgliedsnummer:String(member)});writeArray(SCANNED_KEY,a)}
-function queueScan(data){const q=readArray(QUEUE_KEY);if(data.typ!=='manuell'&&q.some(x=>x.datum===today()&&String(x.mitgliedsnummer)===String(data.mitgliedsnummer)))return false;q.push({...data,datum:today(),erstellt:new Date().toISOString()});writeArray(QUEUE_KEY,q);return true}
-function updateQueueInfo(){const n=readArray(QUEUE_KEY).length;$('debug').textContent=n?'⏳ '+n+' Eintrag/Einträge warten auf Übertragung.':''}
-async function sendToBackend(data){const p=new URLSearchParams();for(const [k,v] of Object.entries(data))if(v!==undefined&&v!==null)p.append(k,String(v));try{await fetch(BACKEND_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:p.toString()});return true}catch(e){console.error(e);return false}}
-async function syncOfflineQueue(){if(syncing||!navigator.onLine||!getToken())return;syncing=true;try{const q=readArray(QUEUE_KEY);if(!q.length){updateQueueInfo();return}const remaining=[];for(let i=0;i<q.length;i++){if(!(await sendToBackend(q[i]))){remaining.push(...q.slice(i));break}}writeArray(QUEUE_KEY,remaining);updateQueueInfo();setStatus(remaining.length?'📶 Einträge warten noch auf Übertragung.':'✅ Offline-Einträge übertragen (Serverbestätigung nicht verfügbar).')}finally{syncing=false}}
+function newScanId(){return crypto.randomUUID()}
+function queueScan(data){
+  const q=readArray(QUEUE_KEY);
+  if(data.typ!=='manuell'&&q.some(x=>x.datum===today()&&String(x.mitgliedsnummer)===String(data.mitgliedsnummer)))return false;
+  q.push({...data,scanId:newScanId(),datum:today(),erstellt:new Date().toISOString(),state:'pending',attempts:0});
+  writeArray(QUEUE_KEY,q);updateQueueInfo();return true;
+}
+function updateQueueInfo(){
+  const q=readArray(QUEUE_KEY),failed=q.filter(x=>x.state==='failed').length;
+  $('pendingCount').textContent=q.length-failed;
+  $('failedCount').textContent=failed;
+  $('confirmedCount').textContent=Number(localStorage.getItem('busScannerConfirmedCount')||0);
+  $('transferError').textContent=failed?'Bitte Übertragungsfehler prüfen.':'';
+  $('debug').textContent=q.length?'⏳ '+q.length+' Eintrag/Einträge noch nicht bestätigt.':'';
+}
+async function sendToBackend(data){
+  const p=new URLSearchParams();for(const [k,v] of Object.entries(data))if(v!==undefined&&v!==null)p.append(k,String(v));
+  try{await fetch(BACKEND_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:p.toString()});return true}
+  catch(e){console.error(e);return false}
+}
+function wait(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+async function getServerReceipt(item){return jsonp('beleg',{scanId:item.scanId,geraeteId:item.geraeteId,token:item.token})}
+async function syncOfflineQueue(){
+  if(syncing||!navigator.onLine||!getToken())return;
+  syncing=true;
+  try{
+    const q=readArray(QUEUE_KEY);
+    for(const item of q){
+      if(item.state==='failed')continue;
+      if(!navigator.onLine)break;
+      let receipt;
+      try{receipt=await getServerReceipt(item)}catch(e){receipt=null}
+      if(!receipt || !receipt.confirmed){
+        if(!await sendToBackend(item))break;
+        for(let n=0;n<4;n++){
+          await wait(1100*(n+1));
+          try{receipt=await getServerReceipt(item);if(receipt.confirmed)break}catch(e){}
+        }
+      }
+      if(receipt&&receipt.confirmed){
+        if(receipt.success){
+          const count=Number(localStorage.getItem('busScannerConfirmedCount')||0)+1;
+          localStorage.setItem('busScannerConfirmedCount',String(count));
+          const idx=readArray(QUEUE_KEY).findIndex(x=>x.scanId===item.scanId);
+          if(idx>=0){const current=readArray(QUEUE_KEY);current.splice(idx,1);writeArray(QUEUE_KEY,current)}
+          setStatus('✅ Speicherung im Google Sheet bestätigt.');
+        }else{
+          const current=readArray(QUEUE_KEY),entry=current.find(x=>x.scanId===item.scanId);
+          if(entry){entry.state='failed';entry.error=receipt.message;writeArray(QUEUE_KEY,current)}
+          setStatus('⚠️ '+receipt.message);
+          $('transferError').textContent=receipt.message;
+          if(receipt.unauthorized){showActivation('⛔ Gerät gesperrt.');break}
+        }
+      }else{setStatus('⏳ Noch keine Serverbestätigung – Eintrag bleibt gespeichert.');break}
+      updateQueueInfo();
+    }
+  }finally{syncing=false;updateQueueInfo()}
+}
 function parseQrCode(text){const r={};text.split(';').forEach(part=>{const i=part.indexOf('=');if(i>=0)r[part.slice(0,i).trim()]=part.slice(i+1).trim()});if(!r.Mitgliedsnummer)throw new Error('Mitgliedsnummer fehlt');return {typ:'qr',mitgliedsnummer:r.Mitgliedsnummer,vorname:r.Vorname||'',nachname:r.Nachname||'',kuerzel:r.Kuerzel||''}}
 function showPerson(person){currentPerson=person;processing=true;stopScanner();$('personName').textContent=person.typ==='manuell'?person.manuellerName:(person.vorname+' '+person.nachname).trim();$('memberNumber').textContent=person.typ==='manuell'?'✍️ Manuelle Erfassung – später zuordnen':'Mitgliedsnummer: '+person.mitgliedsnummer;$('person').style.display='block';$('cameraBox').style.display='none';$('manualBox').style.display='none';$('manualStart').disabled=true;setStatus('Bitte Bus-Auswahl treffen.')}
 function duplicateWarning(){$('duplicateWarning').style.display='block';setTimeout(()=>{$('duplicateWarning').style.display='none';processing=false;startScanner()},3000)}
@@ -35,7 +89,17 @@ function stopScanner(){scanning=false;scanGeneration++}
 function startScanner(){if(!stream||processing||mode!=='qr')return;if(!window.jsQR){setStatus('jsQR wurde nicht geladen.');return}if(scanning)return;scanning=true;const gen=++scanGeneration;if(!canvas){canvas=document.createElement('canvas');context=canvas.getContext('2d',{willReadFrequently:true})}setStatus('Scanner bereit.');requestAnimationFrame(()=>scanFrame(gen))}
 function scanFrame(gen=scanGeneration){if(!scanning||processing||mode!=='qr'||gen!==scanGeneration)return;if(video.readyState>=video.HAVE_ENOUGH_DATA&&video.videoWidth){canvas.width=video.videoWidth;canvas.height=video.videoHeight;context.drawImage(video,0,0,canvas.width,canvas.height);const image=context.getImageData(0,0,canvas.width,canvas.height),code=jsQR(image.data,image.width,image.height,{inversionAttempts:'attemptBoth'});if(code&&code.data){qrDetected(code.data);return}}requestAnimationFrame(()=>scanFrame(gen))}
 function finishScan(){currentPerson=null;processing=false;sending=false;$('busYes').disabled=false;$('busNo').disabled=false;$('person').style.display='none';$('manualStart').disabled=false;if(mode==='manuell'){mode='qr';$('manualName').value=''}$('cameraBox').style.display=stream?'block':'none';startScanner()}
-async function saveScan(bus){if(!currentPerson||sending)return;sending=true;$('busYes').disabled=true;$('busNo').disabled=true;const p=currentPerson;const data={typ:p.typ,mitgliedsnummer:p.mitgliedsnummer||'',vorname:p.vorname||'',nachname:p.nachname||'',kuerzel:p.kuerzel||'',manuellerName:p.manuellerName||'',bus,geraet:getName(),geraeteId:getId(),token:getToken()};setStatus('Eintrag wird gespeichert ...');let result='';if(navigator.onLine&&await sendToBackend(data)){result='✅ Eintrag gesendet (Serverbestätigung nicht verfügbar).'}else{const queued=queueScan(data);result=queued?'📱 Eintrag offline gespeichert – wird später übertragen.':'⚠️ Person auf diesem Handy bereits erfasst.'}if(p.typ!=='manuell')markScannedToday(p.mitgliedsnummer);finishScan();setStatus(result);updateQueueInfo()}
+async function saveScan(bus){
+  if(!currentPerson||sending)return;
+  sending=true;$('busYes').disabled=true;$('busNo').disabled=true;
+  const p=currentPerson;
+  const data={typ:p.typ,mitgliedsnummer:p.mitgliedsnummer||'',vorname:p.vorname||'',nachname:p.nachname||'',kuerzel:p.kuerzel||'',manuellerName:p.manuellerName||'',bus,geraet:getName(),geraeteId:getId(),token:getToken()};
+  const queued=queueScan(data);
+  if(queued&&p.typ!=='manuell')markScannedToday(p.mitgliedsnummer);
+  finishScan();
+  setStatus(queued?'📱 Lokal gesichert – Übertragung und Bestätigung laufen im Hintergrund.':'⚠️ Person auf diesem Handy bereits erfasst.');
+  if(queued)syncOfflineQueue();
+}
 function startManual(){if(processing)return;mode='manuell';stopScanner();$('manualBox').style.display='block';$('manualName').focus();setStatus('Bitte Namen eingeben.')}
 function cancelManual(){mode='qr';$('manualBox').style.display='none';$('manualName').value='';startScanner()}
 function continueManual(){const name=$('manualName').value.trim();if(!name){setStatus('Bitte einen Namen eingeben.');return}showPerson({typ:'manuell',manuellerName:name})}
@@ -44,4 +108,6 @@ $('exportToday').addEventListener('click',()=>{const p=new URLSearchParams({akti
 $('changeDevice').addEventListener('click',()=>{if(readArray(QUEUE_KEY).length){alert('Es gibt noch nicht übertragene Einträge. Bitte zuerst synchronisieren.');return}if(confirm('Freischaltung auf diesem Gerät zurücksetzen?')){localStorage.removeItem(DEVICE_KEY);localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(NAME_KEY);showActivation()}});
 window.addEventListener('online',async()=>{await checkAuthorization();syncOfflineQueue()});
 (async()=>{const ok=await checkAuthorization();if(ok)syncOfflineQueue()})();
+setInterval(()=>{if(navigator.onLine)syncOfflineQueue()},30000);
+updateQueueInfo();
 </script></body></html>
