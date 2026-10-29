@@ -215,14 +215,60 @@ function readArray(key){
 }
 function writeArray(key,arr){localStorage.setItem(key,JSON.stringify(arr))}
 
-function resetDailyStatus(){
-  const day=today();
-  if(localStorage.getItem(STATUS_DAY_KEY)===day)return;
-  localStorage.setItem(STATUS_DAY_KEY,day);
-  localStorage.setItem('busScannerConfirmedCount','0');
-  writeArray(HISTORY_KEY,[]);
-  // Ausstehende Übertragungen niemals löschen.
+
+function resetDailyStatus() {
+  const day = today();
+
+  if (localStorage.getItem(STATUS_DAY_KEY) === day) return;
+
+  // Alte, vom Server abgelehnte Duplikate entfernen.
+  // Nicht bestätigte Übertragungen bleiben erhalten.
+  const queue = readArray(QUEUE_KEY);
+
+  const cleanedQueue = queue.filter(item => {
+    const message = String(item.error || '').toLowerCase();
+
+    const isDuplicate =
+      message.includes('bereits erfasst') ||
+      message.includes('bereits gescannt') ||
+      message.includes('duplikat');
+
+    return !(
+      item.state === 'failed' &&
+      isDuplicate
+    );
+  });
+
+  writeArray(QUEUE_KEY, cleanedQueue);
+
+  // Tagesstatistik zurücksetzen
+  localStorage.setItem('busScannerConfirmedCount', '0');
+  writeArray(HISTORY_KEY, []);
+  localStorage.setItem(STATUS_DAY_KEY, day);
 }
+
+function cleanupOldDuplicates() {
+  const queue = readArray(QUEUE_KEY);
+
+  const cleaned = queue.filter(item => {
+    const message = String(item.error || '').toLowerCase();
+
+    const isDuplicate =
+      message.includes('bereits erfasst') ||
+      message.includes('bereits gescannt') ||
+      message.includes('duplikat');
+
+    return !(
+      item.state === 'failed' &&
+      isDuplicate
+    );
+  });
+
+  if (cleaned.length !== queue.length) {
+    writeArray(QUEUE_KEY, cleaned);
+  }
+}
+
 
 function wasScannedToday(member){
   return readArray(SCANNED_KEY).some(x=>x.datum===today()&&String(x.mitgliedsnummer)===String(member));
@@ -621,6 +667,7 @@ setInterval(()=>{
   if(navigator.onLine)syncOfflineQueue();
 },30000);
 
+cleanupOldDuplicates();
 updateQueueInfo();
 </script>
 </body>
